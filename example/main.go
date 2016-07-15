@@ -68,7 +68,7 @@ func main() {
 	provider.BindProperty(beanSet, varietySet, "Varieties", "Varieties", "Beans", "Beans")
 
 	service := BuildService(provider)
-	service.ListenAndServe(":8080")
+	service.ListenAndServe(":8080", "http://localhost")
 
 	//service.AttachMiddleware(CacheMiddleware)
 	//service.AttachMiddleware(AuthorizationMiddleware)

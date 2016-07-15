@@ -162,7 +162,7 @@ func SemanticizePathSegment(segment *GoDataSegment, service *GoDataService) erro
 			} else {
 				// there is at least one more segment
 				if segment.Identifier != nil {
-					return BadRequestError("An entity set must be the last segmnet.")
+					return BadRequestError("An entity set must be the last segment.")
 				}
 				// if it has an identifier, it is allowed
 				return nil
@@ -173,7 +173,7 @@ func SemanticizePathSegment(segment *GoDataSegment, service *GoDataService) erro
 		} else {
 			// this is a middle segment
 			if segment.Identifier != nil {
-				return BadRequestError("An entity set must be the last segmnet.")
+				return BadRequestError("An entity set must be the last segment.")
 			}
 			// if it has an identifier, it is allowed
 			return nil

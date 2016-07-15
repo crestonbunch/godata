@@ -8,11 +8,19 @@ import (
 type DummyProvider struct {
 }
 
-func (*DummyProvider) Response(*GoDataRequest) *GoDataResponse {
-	return nil
+func (*DummyProvider) GetEntity(*GoDataRequest) (*GoDataResponseField, error) {
+	return nil, NotImplementedError("Dummy provider implements nothing.")
 }
 
-func (*DummyProvider) BuildMetadata() *GoDataMetadata {
+func (*DummyProvider) GetEntityCollection(*GoDataRequest) (*GoDataResponseField, error) {
+	return nil, NotImplementedError("Dummy provider implements nothing.")
+}
+
+func (*DummyProvider) GetCount(*GoDataRequest) (int, error) {
+	return 0, NotImplementedError("Dummy provider implements nothing.")
+}
+
+func (*DummyProvider) GetMetadata() *GoDataMetadata {
 
 	metadata := &GoDataMetadata{
 		DataServices: &GoDataServices{
@@ -111,7 +119,12 @@ func TestSemanticizeRequest(t *testing.T) {
 		return
 	}
 
-	service := BuildService(provider)
+	service, err := BuildService(provider, "http://localhost")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	err = SemanticizeRequest(req, service)
 
@@ -174,7 +187,12 @@ func TestSemanticizeRequestWildcard(t *testing.T) {
 		return
 	}
 
-	service := BuildService(provider)
+	service, err := BuildService(provider, "http://localhost")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	err = SemanticizeRequest(req, service)
 
@@ -222,7 +240,12 @@ func BenchmarkBuildProvider(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		provider := &DummyProvider{}
 
-		BuildService(provider)
+		_, err := BuildService(provider, "http://localhost")
+
+		if err != nil {
+			b.Error(err)
+			return
+		}
 	}
 }
 
@@ -247,7 +270,12 @@ func BenchmarkTypicalParseSemanticizeRequest(b *testing.B) {
 			return
 		}
 
-		service := BuildService(provider)
+		service, err := BuildService(provider, "http://localhost")
+
+		if err != nil {
+			b.Error(err)
+			return
+		}
 
 		err = SemanticizeRequest(req, service)
 
@@ -279,7 +307,12 @@ func BenchmarkWildcardParseSemanticizeRequest(b *testing.B) {
 			return
 		}
 
-		service := BuildService(provider)
+		service, err := BuildService(provider, "http://localhost")
+
+		if err != nil {
+			b.Error(err)
+			return
+		}
 
 		err = SemanticizeRequest(req, service)
 

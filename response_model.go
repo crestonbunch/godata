@@ -23,7 +23,7 @@ func (r *GoDataResponse) Json() ([]byte, error) {
 
 // A response that is a primitive JSON type or a list or a dictionary. When
 // writing to JSON, it is automatically mapped from the Go type to a suitable
-// JSON data type. Any type can be used, but ff the data type is not supported
+// JSON data type. Any type can be used, but if the data type is not supported
 // for serialization, then an error is thrown.
 type GoDataResponseField struct {
 	Value interface{}

@@ -2,20 +2,42 @@ package godata
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
+)
+
+const (
+	ODataFieldContext string = "@odata.context"
+	ODataFieldCount   string = "@odata.count"
+	ODataFieldValue   string = "value"
 )
 
 // The basic interface for a GoData provider. All providers must implement
 // these functions.
 type GoDataProvider interface {
-	Response(*GoDataRequest) *GoDataResponse
-	BuildMetadata() *GoDataMetadata
+	// Request a single entity from the provider. Should return a response field
+	// that contains the value mapping properties to values for the entity.
+	GetEntity(*GoDataRequest) (*GoDataResponseField, error)
+	// Request a collection of entities from the provider. Should return a
+	// response field that contains the value of a slice of every entity in the
+	// collection filtered by the request query parameters.
+	GetEntityCollection(*GoDataRequest) (*GoDataResponseField, error)
+	// Request the number of entities in a collection, disregarding any filter
+	// query parameters.
+	GetCount(*GoDataRequest) (int, error)
+	// Get the object model representation from the provider.
+	GetMetadata() *GoDataMetadata
 }
 
 // A GoDataService will spawn an HTTP listener, which will connect GoData
 // requests with a backend provider given to it.
 type GoDataService struct {
+	// The base url for the service. Navigating to this URL will display the
+	// service document.
+	BaseUrl *url.URL
+	// The provider for this service that is serving the data to the OData API.
 	Provider GoDataProvider
+	// Metadata cache taken from the provider.
 	Metadata *GoDataMetadata
 	// A mapping from schema names to schema references
 	SchemaLookup map[string]*GoDataSchema
@@ -25,7 +47,7 @@ type GoDataService struct {
 	// A bottom-up mapping from entity container names to schema namespaces to
 	// the entity container reference
 	EntityContainerLookup map[string]map[string]*GoDataEntityContainer
-	// A bottom-up mapping from entity set names to entity collecton names to
+	// A bottom-up mapping from entity set names to entity collection names to
 	// schema namespaces to the entity set reference
 	EntitySetLookup map[string]map[string]map[string]*GoDataEntitySet
 	// A lookup for entity properties if an entity type is given, lookup
@@ -36,12 +58,18 @@ type GoDataService struct {
 	NavigationPropertyLookup map[*GoDataEntityType]map[string]*GoDataNavigationProperty
 }
 
+type providerChannelResponse struct {
+	Field *GoDataResponseField
+	Error error
+}
+
 // Create a new service from a given provider. This step builds lookups for
 // all parts of the data model, so constant time lookups can be performed. This
 // step only happens once when the server starts up, so the overall cost is
-// minimal
-func BuildService(provider GoDataProvider) *GoDataService {
-	metadata := provider.BuildMetadata()
+// minimal. The given url will be treated as the base URL for all service
+// requests, and used for building context URLs, etc.
+func BuildService(provider GoDataProvider, serviceUrl string) (*GoDataService, error) {
+	metadata := provider.GetMetadata()
 
 	// build the lookups from the metadata
 	schemaLookup := map[string]*GoDataSchema{}
@@ -92,16 +120,23 @@ func BuildService(provider GoDataProvider) *GoDataService {
 		}
 	}
 
+	parsedUrl, err := url.Parse(serviceUrl)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &GoDataService{
+		parsedUrl,
 		provider,
-		provider.BuildMetadata(),
+		provider.GetMetadata(),
 		schemaLookup,
 		entityLookup,
 		containerLookup,
 		entitySetLookup,
 		propertyLookup,
 		navPropLookup,
-	}
+	}, nil
 }
 
 // The default handler for parsing requests as GoDataRequests, passing them
@@ -156,30 +191,127 @@ func (service *GoDataService) buildMetadataResponse(request *GoDataRequest) ([]b
 }
 
 func (service *GoDataService) buildServiceResponse(request *GoDataRequest) ([]byte, error) {
+	// TODO
 	return nil, NotImplementedError("Service responses are not implemented yet.")
 }
 
 func (service *GoDataService) buildCollectionResponse(request *GoDataRequest) ([]byte, error) {
-	return nil, NotImplementedError("Collection responses are not implemented yet.")
+	response := &GoDataResponse{Fields: map[string]*GoDataResponseField{}}
+	// get request from provider
+	responses := make(chan *providerChannelResponse)
+	go func() {
+		result, err := service.Provider.GetEntityCollection(request)
+		responses <- &providerChannelResponse{result, err}
+		close(responses)
+	}()
+
+	if bool(*request.Query.Count) {
+		// if count is true, also include the count result
+		counts := make(chan *providerChannelResponse)
+
+		go func() {
+			result, err := service.Provider.GetCount(request)
+			counts <- &providerChannelResponse{&GoDataResponseField{result}, err}
+			close(counts)
+		}()
+
+		r := <-counts
+		if r.Error != nil {
+			return nil, r.Error
+		}
+
+		response.Fields[ODataFieldCount] = r.Field
+	}
+	// build context URL
+	context := request.LastSegment.SemanticReference.(*GoDataEntitySet).Name
+	path, err := url.Parse("./$metadata#" + context)
+	if err != nil {
+		return nil, err
+	}
+	contextUrl := service.BaseUrl.ResolveReference(path).String()
+	response.Fields[ODataFieldContext] = &GoDataResponseField{Value: contextUrl}
+
+	// wait for a response from the provider
+	r := <-responses
+
+	if r.Error != nil {
+		return nil, r.Error
+	}
+
+	response.Fields[ODataFieldValue] = r.Field
+
+	return response.Json()
 }
 
 func (service *GoDataService) buildEntityResponse(request *GoDataRequest) ([]byte, error) {
-	return nil, NotImplementedError("Entity responses are not implemented yet.")
+	// get request from provider
+	responses := make(chan *providerChannelResponse)
+	go func() {
+		result, err := service.Provider.GetEntity(request)
+		responses <- &providerChannelResponse{result, err}
+		close(responses)
+	}()
+
+	// build context URL
+	context := request.LastSegment.SemanticReference.(*GoDataEntitySet).Name
+	path, err := url.Parse("./$metadata#" + context + "/$entity")
+	if err != nil {
+		return nil, err
+	}
+	contextUrl := service.BaseUrl.ResolveReference(path).String()
+
+	// wait for a response from the provider
+	r := <-responses
+
+	if r.Error != nil {
+		return nil, r.Error
+	}
+
+	// Add context field to result and create the response
+	switch r.Field.Value.(type) {
+	case map[string]*GoDataResponseField:
+		fields := r.Field.Value.(map[string]*GoDataResponseField)
+		fields[ODataFieldContext] = &GoDataResponseField{Value: contextUrl}
+		response := &GoDataResponse{Fields: fields}
+
+		return response.Json()
+	default:
+		return nil, InternalServerError("Provider did not return a valid response" +
+			" from GetEntity()")
+	}
 }
 
 func (service *GoDataService) buildPropertyResponse(request *GoDataRequest) ([]byte, error) {
+	// TODO
 	return nil, NotImplementedError("Property responses are not implemented yet.")
 }
 
 func (service *GoDataService) buildPropertyValueResponse(request *GoDataRequest) ([]byte, error) {
+	// TODO
 	return nil, NotImplementedError("Property value responses are not implemented yet.")
 }
 
 func (service *GoDataService) buildCountResponse(request *GoDataRequest) ([]byte, error) {
-	return nil, NotImplementedError("Count responses are not implemented yet.")
+	// get request from provider
+	responses := make(chan *providerChannelResponse)
+	go func() {
+		result, err := service.Provider.GetCount(request)
+		responses <- &providerChannelResponse{&GoDataResponseField{result}, err}
+		close(responses)
+	}()
+
+	// wait for a response from the provider
+	r := <-responses
+
+	if r.Error != nil {
+		return nil, r.Error
+	}
+
+	return r.Field.Json()
 }
 
 func (service *GoDataService) buildRefResponse(request *GoDataRequest) ([]byte, error) {
+	// TODO
 	return nil, NotImplementedError("Ref responses are not implemented yet.")
 }
 
