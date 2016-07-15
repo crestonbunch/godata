@@ -43,7 +43,7 @@ code to help you understand the process. The code works something like this:
 
 1. A provider is initialized that defines the object model (i.e., metadata), of
    the OData service. (See the example directory.)
-2. An HTTP request is received by the request handler in request_handler.go
+2. An HTTP request is received by the request handler in service.go
 3. The URL is parsed into a data structure defined in request_model.go
 4. The request model is semanticized, so each piece of the request is associated
    with an entity/type/collection/etc. in the provider object model.
