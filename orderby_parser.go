@@ -23,12 +23,14 @@ func ParseOrderByString(orderby string) (*GoDataOrderByQuery, error) {
 		parts := strings.Split(v, " ")
 		field := &Token{Value: parts[0]}
 		var order string = ASC
-		if strings.ToLower(parts[0]) == ASC {
-			order = ASC
-		} else if strings.ToLower(parts[1]) == DESC {
-			order = DESC
-		} else {
-			return nil, BadRequestError("Could not parse orderby query.")
+		if len(parts) > 1 {
+			if strings.ToLower(parts[1]) == ASC {
+				order = ASC
+			} else if strings.ToLower(parts[1]) == DESC {
+				order = DESC
+			} else {
+				return nil, BadRequestError("Could not parse orderby query.")
+			}
 		}
 		result = append(result, &OrderByItem{field, order})
 	}

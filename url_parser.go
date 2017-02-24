@@ -212,6 +212,7 @@ func ParseUrlQuery(query url.Values) (*GoDataQuery, error) {
 	top := query.Get("$top")
 	skip := query.Get("$skip")
 	count := query.Get("$count")
+	inlinecount := query.Get("$inlinecount")
 	search := query.Get("$search")
 	format := query.Get("$format")
 
@@ -256,6 +257,12 @@ func ParseUrlQuery(query url.Values) (*GoDataQuery, error) {
 	}
 	if count != "" {
 		result.Count, err = ParseCountString(count)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if inlinecount != "" {
+		result.InlineCount, err = ParseInlineCountString(inlinecount)
 	}
 	if err != nil {
 		return nil, err
