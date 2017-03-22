@@ -92,7 +92,7 @@ func FilterParser() *Parser {
 	parser.DefineOperator("le", 2, OpAssociationLeft, 4)
 	parser.DefineOperator("isof", 2, OpAssociationLeft, 4)
 	parser.DefineOperator("eq", 2, OpAssociationLeft, 3)
-	parser.DefineOperator("nq", 2, OpAssociationLeft, 3)
+	parser.DefineOperator("ne", 2, OpAssociationLeft, 3)
 	parser.DefineOperator("and", 2, OpAssociationLeft, 2)
 	parser.DefineOperator("or", 2, OpAssociationLeft, 1)
 	parser.DefineFunction("contains", 2)
