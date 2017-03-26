@@ -65,6 +65,7 @@ type GoDataSegment struct {
 
 type GoDataQuery struct {
 	Filter      *GoDataFilterQuery
+	Apply       *GoDataApplyQuery
 	Expand      *GoDataExpandQuery
 	Select      *GoDataSelectQuery
 	OrderBy     *GoDataOrderByQuery
@@ -82,6 +83,8 @@ type GoDataQuery struct {
 type GoDataFilterQuery struct {
 	Tree *ParseNode
 }
+
+type GoDataApplyQuery string
 
 type GoDataExpandQuery struct {
 	ExpandItems []*ExpandItem
