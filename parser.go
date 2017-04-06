@@ -180,7 +180,7 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 			}
 			// pop off open paren
 			stack.Pop()
-			// if next token is a funciton, move it to the queue
+			// if next token is a function, move it to the queue
 			if !stack.Empty() {
 				if _, ok := p.Functions[stack.Peek().Value]; ok {
 					queue.Enqueue(stack.Pop())

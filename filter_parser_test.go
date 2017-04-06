@@ -2,6 +2,7 @@ package godata
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"testing"
 )
@@ -168,4 +169,79 @@ func TestFilterParserTree(t *testing.T) {
 		t.Error("First child is '" + tree.Children[1].Token.Value + "' not 'eq'")
 	}
 
+}
+
+func printTree(n *ParseNode, level int) {
+	indent := ""
+	for i := 0; i < level; i++ {
+		indent += "  "
+	}
+	fmt.Printf("%s %-10s %-10d\n", indent, n.Token.Value, n.Token.Type)
+	for _, v := range n.Children {
+		printTree(v, level+1)
+	}
+}
+
+func TestNestedPath(t *testing.T) {
+	input := "Address/City eq 'Redmond'"
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	//printTree(tree, 0)
+	if tree.Token.Value != "eq" {
+		t.Error("Root is '" + tree.Token.Value + "' not 'eq'")
+	}
+	if tree.Children[0].Token.Value != "/" {
+		t.Error("First child is \"" + tree.Children[0].Token.Value + "\", not '/'")
+	}
+	if tree.Children[1].Token.Value != "'Redmond'" {
+		t.Error("First child is \"" + tree.Children[1].Token.Value + "\", not 'Redmond'")
+	}
+}
+
+func TestLambda(t *testing.T) {
+	input := "Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')"
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	//printTree(tree, 0)
+
+	if tree.Token.Value != "/" {
+		t.Error("Root is '" + tree.Token.Value + "' not '/'")
+	}
+	if tree.Children[0].Token.Value != "Tags" {
+		t.Error("First child is '" + tree.Children[0].Token.Value + "' not 'Tags'")
+	}
+	if tree.Children[1].Token.Value != "any" {
+		t.Error("First child is '" + tree.Children[1].Token.Value + "' not 'any'")
+	}
+	if tree.Children[1].Children[0].Token.Value != ":" {
+		t.Error("First child is '" + tree.Children[1].Children[0].Token.Value + "' not ':'")
+	}
 }

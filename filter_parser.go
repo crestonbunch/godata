@@ -97,6 +97,7 @@ func FilterParser() *Parser {
 	parser.DefineOperator("ne", 2, OpAssociationLeft, 3)
 	parser.DefineOperator("and", 2, OpAssociationLeft, 2)
 	parser.DefineOperator("or", 2, OpAssociationLeft, 1)
+	parser.DefineOperator(":", 2, OpAssociationLeft, 1)
 	parser.DefineFunction("contains", 2)
 	parser.DefineFunction("endswith", 2)
 	parser.DefineFunction("startswith", 2)
