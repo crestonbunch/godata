@@ -6,6 +6,68 @@ import (
 	"testing"
 )
 
+func TestFilterAny(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	input := "Tags/any(d:d/Key eq 'Site' and d/Value lt 10)"
+	expect := []*Token{
+		&Token{Value: "Tags", Type: FilterTokenLiteral},
+		&Token{Value: "/", Type: FilterTokenNav},
+		&Token{Value: "any", Type: FilterTokenLambda},
+		&Token{Value: "(", Type: FilterTokenOpenParen},
+		&Token{Value: "d", Type: FilterTokenLiteral},
+		&Token{Value: ":", Type: FilterTokenColon},
+		&Token{Value: "d", Type: FilterTokenLiteral},
+		&Token{Value: "/", Type: FilterTokenNav},
+		&Token{Value: "Key", Type: FilterTokenLiteral},
+		&Token{Value: "eq", Type: FilterTokenLogical},
+		&Token{Value: "'Site'", Type: FilterTokenString},
+		&Token{Value: "and", Type: FilterTokenLogical},
+		&Token{Value: "d", Type: FilterTokenLiteral},
+		&Token{Value: "/", Type: FilterTokenNav},
+		&Token{Value: "Value", Type: FilterTokenLiteral},
+		&Token{Value: "lt", Type: FilterTokenLogical},
+		&Token{Value: "10", Type: FilterTokenInteger},
+		&Token{Value: ")", Type: FilterTokenCloseParen},
+	}
+	output, err := tokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+	}
+
+	result, err := CompareTokens(expect, output)
+	if !result {
+		t.Error(err)
+	}
+}
+
+func TestFilterAll(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	input := "Tags/all(d:d/Key eq 'Site')"
+	expect := []*Token{
+		&Token{Value: "Tags", Type: FilterTokenLiteral},
+		&Token{Value: "/", Type: FilterTokenNav},
+		&Token{Value: "all", Type: FilterTokenLambda},
+		&Token{Value: "(", Type: FilterTokenOpenParen},
+		&Token{Value: "d", Type: FilterTokenLiteral},
+		&Token{Value: ":", Type: FilterTokenColon},
+		&Token{Value: "d", Type: FilterTokenLiteral},
+		&Token{Value: "/", Type: FilterTokenNav},
+		&Token{Value: "Key", Type: FilterTokenLiteral},
+		&Token{Value: "eq", Type: FilterTokenLogical},
+		&Token{Value: "'Site'", Type: FilterTokenString},
+		&Token{Value: ")", Type: FilterTokenCloseParen},
+	}
+	output, err := tokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+	}
+
+	result, err := CompareTokens(expect, output)
+	if !result {
+		t.Error(err)
+	}
+}
+
 func TestFilterTokenizer(t *testing.T) {
 
 	tokenizer := FilterTokenizer()

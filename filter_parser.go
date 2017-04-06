@@ -5,6 +5,7 @@ const (
 	FilterTokenCloseParen
 	FilterTokenWhitespace
 	FilterTokenNav
+	FilterTokenColon // for 'any' and 'all' lambda operators
 	FilterTokenComma
 	FilterTokenLogical
 	FilterTokenOp
@@ -51,6 +52,7 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^\\(", FilterTokenOpenParen)
 	t.Add("^\\)", FilterTokenCloseParen)
 	t.Add("^/", FilterTokenNav)
+	t.Add("^:", FilterTokenColon)
 	t.Add("^,", FilterTokenComma)
 	t.Add("^(eq|ne|gt|ge|lt|le|and|or|not|has)", FilterTokenLogical)
 	t.Add("^(add|sub|mul|div|mod)", FilterTokenOp)
