@@ -64,15 +64,17 @@ type GoDataSegment struct {
 }
 
 type GoDataQuery struct {
-	Filter  *GoDataFilterQuery
-	Expand  *GoDataExpandQuery
-	Select  *GoDataSelectQuery
-	OrderBy *GoDataOrderByQuery
-	Top     *GoDataTopQuery
-	Skip    *GoDataSkipQuery
-	Count   *GoDataCountQuery
-	Search  *GoDataSearchQuery
-	Format  *GoDataFormatQuery
+	Filter      *GoDataFilterQuery
+	Apply       *GoDataApplyQuery
+	Expand      *GoDataExpandQuery
+	Select      *GoDataSelectQuery
+	OrderBy     *GoDataOrderByQuery
+	Top         *GoDataTopQuery
+	Skip        *GoDataSkipQuery
+	Count       *GoDataCountQuery
+	InlineCount *GoDataInlineCountQuery
+	Search      *GoDataSearchQuery
+	Format      *GoDataFormatQuery
 }
 
 // Stores a parsed version of the filter query string. Can be used by
@@ -81,6 +83,8 @@ type GoDataQuery struct {
 type GoDataFilterQuery struct {
 	Tree *ParseNode
 }
+
+type GoDataApplyQuery string
 
 type GoDataExpandQuery struct {
 	ExpandItems []*ExpandItem
@@ -99,6 +103,8 @@ type GoDataTopQuery int
 type GoDataSkipQuery int
 
 type GoDataCountQuery bool
+
+type GoDataInlineCountQuery string
 
 type GoDataSearchQuery struct {
 	Tree *ParseNode

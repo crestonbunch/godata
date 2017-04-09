@@ -5,6 +5,7 @@ const (
 	FilterTokenCloseParen
 	FilterTokenWhitespace
 	FilterTokenNav
+	FilterTokenColon // for 'any' and 'all' lambda operators
 	FilterTokenComma
 	FilterTokenLogical
 	FilterTokenOp
@@ -51,6 +52,7 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^\\(", FilterTokenOpenParen)
 	t.Add("^\\)", FilterTokenCloseParen)
 	t.Add("^/", FilterTokenNav)
+	t.Add("^:", FilterTokenColon)
 	t.Add("^,", FilterTokenComma)
 	t.Add("^(eq|ne|gt|ge|lt|le|and|or|not|has)", FilterTokenLogical)
 	t.Add("^(add|sub|mul|div|mod)", FilterTokenOp)
@@ -92,9 +94,10 @@ func FilterParser() *Parser {
 	parser.DefineOperator("le", 2, OpAssociationLeft, 4)
 	parser.DefineOperator("isof", 2, OpAssociationLeft, 4)
 	parser.DefineOperator("eq", 2, OpAssociationLeft, 3)
-	parser.DefineOperator("nq", 2, OpAssociationLeft, 3)
+	parser.DefineOperator("ne", 2, OpAssociationLeft, 3)
 	parser.DefineOperator("and", 2, OpAssociationLeft, 2)
 	parser.DefineOperator("or", 2, OpAssociationLeft, 1)
+	parser.DefineOperator(":", 2, OpAssociationLeft, 1)
 	parser.DefineFunction("contains", 2)
 	parser.DefineFunction("endswith", 2)
 	parser.DefineFunction("startswith", 2)
