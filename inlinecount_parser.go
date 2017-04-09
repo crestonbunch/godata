@@ -12,6 +12,6 @@ func ParseInlineCountString(inlinecount string) (*GoDataInlineCountQuery, error)
 	} else if inlinecount == NONE {
 		return &result, nil
 	} else {
-		return nil, BadRequestError("Could not parse orderby query.")
+		return nil, BadRequestError("Invalid inlinecount query.")
 	}
 }
