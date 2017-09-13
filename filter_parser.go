@@ -49,6 +49,9 @@ func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 // Create a tokenizer capable of tokenizing filter statements
 func FilterTokenizer() *Tokenizer {
 	t := Tokenizer{}
+	t.Add("^[0-9]{4,4}-[0-9]{2,2}-[0-9]{2,2}T[0-9]{2,2}:[0-9]{2,2}(:[0-9]{2,2}(.[0-9]+)?)?(Z|[+-][0-9]{2,2}:[0-9]{2,2})", FilterTokenDateTime)
+	t.Add("^-?[0-9]{4,4}-[0-9]{2,2}-[0-9]{2,2}", FilterTokenDate)
+	t.Add("^[0-9]{2,2}:[0-9]{2,2}(:[0-9]{2,2}(.[0-9]+)?)?", FilterTokenTime)
 	t.Add("^\\(", FilterTokenOpenParen)
 	t.Add("^\\)", FilterTokenCloseParen)
 	t.Add("^/", FilterTokenNav)
@@ -67,9 +70,6 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^-?[0-9]+\\.[0-9]+", FilterTokenFloat)
 	t.Add("^-?[0-9]+", FilterTokenInteger)
 	t.Add("^'(''|[^'])*'", FilterTokenString)
-	t.Add("^-?[0-9]{4,4}-[0-9]{2,2}-[0-9]{2,2}", FilterTokenDate)
-	t.Add("^[0-9]{2,2}:[0-9]{2,2}(:[0-9]{2,2}(.[0-9]+)?)?", FilterTokenTime)
-	t.Add("^[0-9]{4,4}-[0-9]{2,2}-[0-9]{2,2}T[0-9]{2,2}:[0-9]{2,2}(:[0-9]{2,2}(.[0-9]+)?)?(Z|[+-][0-9]{2,2}:[0-9]{2,2})", FilterTokenDateTime)
 	t.Add("^[a-zA-Z][a-zA-Z0-9_.]*", FilterTokenLiteral)
 	t.Ignore("^ ", FilterTokenWhitespace)
 
