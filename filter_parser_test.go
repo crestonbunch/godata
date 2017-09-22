@@ -7,6 +7,38 @@ import (
 	"testing"
 )
 
+func TestFilterDateTime(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	tokens := map[string]int{
+		"2011-08-29T21:58Z": FilterTokenDateTime,
+		"2011-08-29T21:58:33Z": FilterTokenDateTime,
+		"2011-08-29T21:58:33.123Z": FilterTokenDateTime,
+		"2011-08-29T21:58+11:23": FilterTokenDateTime,
+		"2011-08-29T21:58:33+11:23": FilterTokenDateTime,
+		"2011-08-29T21:58:33.123+11:23": FilterTokenDateTime,
+		"2011-08-29T21:58:33-11:23": FilterTokenDateTime,
+		"2011-08-29": FilterTokenDate,
+		"21:58:33": FilterTokenTime,
+	}
+	for tokenValue, tokenType := range tokens {
+		input := "CreateTime gt" + tokenValue
+		expect := []*Token{
+			&Token{Value: "CreateTime", Type: FilterTokenLiteral},
+			&Token{Value: "gt", Type: FilterTokenLogical},
+			&Token{Value: tokenValue, Type: tokenType},
+		}
+		output, err := tokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+		}
+
+		result, err := CompareTokens(expect, output)
+		if !result {
+			t.Error(err)
+		}
+	}
+}
+
 func TestFilterAny(t *testing.T) {
 	tokenizer := FilterTokenizer()
 	input := "Tags/any(d:d/Key eq 'Site' and d/Value lt 10)"

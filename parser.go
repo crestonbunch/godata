@@ -144,7 +144,7 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 			stack.Push(token)
 		} else if token.Value == "," {
 			// function parameter separator, pop off stack until we see a "("
-			for stack.Peek().Value != "(" || stack.Empty() {
+			for !stack.Empty() && stack.Peek().Value != "(" {
 				queue.Enqueue(stack.Pop())
 			}
 			// there was an error parsing
