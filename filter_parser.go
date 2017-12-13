@@ -70,6 +70,7 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^-?[0-9]+\\.[0-9]+", FilterTokenFloat)
 	t.Add("^-?[0-9]+", FilterTokenInteger)
 	t.Add("^'(''|[^'])*'", FilterTokenString)
+  t.Add("^(true|false)", FilterTokenBoolean)
 	t.Add("^[a-zA-Z][a-zA-Z0-9_.]*", FilterTokenLiteral)
 	t.Ignore("^ ", FilterTokenWhitespace)
 
