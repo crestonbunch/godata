@@ -129,7 +129,7 @@ func FilterParser() *Parser {
 	parser.DefineFunction("isof", 2)
 	parser.DefineFunction("cast", 2)
 	parser.DefineFunction("geo.distance", 2)
-	parser.DefineFunction("geo.intesects", 2)
+	parser.DefineFunction("geo.intersects", 2)
 	parser.DefineFunction("geo.length", 1)
 	parser.DefineFunction("any", 1)
 	parser.DefineFunction("all", 1)
