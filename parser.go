@@ -22,8 +22,8 @@ type Tokenizer struct {
 }
 
 type TokenMatcher struct {
-	Pattern string
-	Re      *regexp.Regexp
+	Pattern string         // The regular expression matching a ODATA query token, such as literal value, operator or function
+	Re      *regexp.Regexp // The compiled regex
 	Token   int
 }
 
@@ -233,9 +233,18 @@ func (p *Parser) PostfixToTree(queue *tokenQueue) (*ParseNode, error) {
 			node := stack.Pop()
 			o := p.Operators[node.Token.Value]
 			// pop off operands
-			for i := 0; i < o.Operands; i++ {
-				// prepend children so they get added in the right order
-				node.Children = append([]*ParseNode{stack.Pop()}, node.Children...)
+			if o.Operands == -1 {
+				// This is a operator with a list of arguments, such as the 'in' operator.
+				// Pop off the entire stack.
+				for !stack.Empty() {
+					// prepend children so they get added in the right order
+					node.Children = append([]*ParseNode{stack.Pop()}, node.Children...)
+				}
+			} else {
+				for i := 0; i < o.Operands; i++ {
+					// prepend children so they get added in the right order
+					node.Children = append([]*ParseNode{stack.Pop()}, node.Children...)
+				}
 			}
 			stack.Push(node)
 		}

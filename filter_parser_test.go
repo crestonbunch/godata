@@ -3,22 +3,21 @@ package godata
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"testing"
 )
 
 func TestFilterDateTime(t *testing.T) {
 	tokenizer := FilterTokenizer()
 	tokens := map[string]int{
-		"2011-08-29T21:58Z": FilterTokenDateTime,
-		"2011-08-29T21:58:33Z": FilterTokenDateTime,
-		"2011-08-29T21:58:33.123Z": FilterTokenDateTime,
-		"2011-08-29T21:58+11:23": FilterTokenDateTime,
-		"2011-08-29T21:58:33+11:23": FilterTokenDateTime,
+		"2011-08-29T21:58Z":             FilterTokenDateTime,
+		"2011-08-29T21:58:33Z":          FilterTokenDateTime,
+		"2011-08-29T21:58:33.123Z":      FilterTokenDateTime,
+		"2011-08-29T21:58+11:23":        FilterTokenDateTime,
+		"2011-08-29T21:58:33+11:23":     FilterTokenDateTime,
 		"2011-08-29T21:58:33.123+11:23": FilterTokenDateTime,
-		"2011-08-29T21:58:33-11:23": FilterTokenDateTime,
-		"2011-08-29": FilterTokenDate,
-		"21:58:33": FilterTokenTime,
+		"2011-08-29T21:58:33-11:23":     FilterTokenDateTime,
+		"2011-08-29":                    FilterTokenDate,
+		"21:58:33":                      FilterTokenTime,
 	}
 	for tokenValue, tokenType := range tokens {
 		input := "CreateTime gt" + tokenValue
@@ -125,6 +124,76 @@ func TestFilterTokenizer(t *testing.T) {
 	}
 }
 
+// See http://docs.oasis-open.org/odata/odata/v4.01/csprd02/part1-protocol/odata-v4.01-csprd02-part1-protocol.html#_Toc486263411
+// Test 'in', which is the 'Is a member of' operator.
+func TestFilterIn(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	input := "Site in ('London', 'Paris', 'San Francisco',  'Dallas') and Name eq 'Bob'"
+	expect := []*Token{
+		&Token{Value: "Site", Type: FilterTokenLiteral},
+		&Token{Value: "in", Type: FilterTokenLogical},
+		&Token{Value: "(", Type: FilterTokenOpenParen},
+		&Token{Value: "'London'", Type: FilterTokenString},
+		&Token{Value: ",", Type: FilterTokenComma},
+		&Token{Value: "'Paris'", Type: FilterTokenString},
+		&Token{Value: ",", Type: FilterTokenComma},
+		&Token{Value: "'San Francisco'", Type: FilterTokenString},
+		&Token{Value: ",", Type: FilterTokenComma},
+		&Token{Value: "'Dallas'", Type: FilterTokenString},
+		&Token{Value: ")", Type: FilterTokenCloseParen},
+		&Token{Value: "and", Type: FilterTokenLogical},
+		&Token{Value: "Name", Type: FilterTokenLiteral},
+		&Token{Value: "eq", Type: FilterTokenLogical},
+		&Token{Value: "'Bob'", Type: FilterTokenString},
+	}
+	{
+		output, err := tokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+		}
+		result, err := CompareTokens(expect, output)
+		if !result {
+			t.Error(err)
+		}
+	}
+	{
+		tokens, err := GlobalFilterTokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		output, err := GlobalFilterParser.InfixToPostfix(tokens)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		tree, err := GlobalFilterParser.PostfixToTree(output)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		if tree.Token.Value != "and" {
+			t.Errorf("Root is '%v', not 'and'", tree.Token.Value)
+		}
+		if len(tree.Children) != 2 {
+			t.Errorf("Unexpected number of operators. Expected 2, got %d", len(tree.Children))
+		}
+		if tree.Children[0].Token.Value != "in" {
+			t.Errorf("First child is '%v', not 'in'", tree.Children[0].Token.Value)
+		}
+		if len(tree.Children[0].Children) != 5 {
+			t.Errorf("Unexpected number of literal values for the 'in' operator. Expected 5, got %d", len(tree.Children[0].Children))
+		}
+		if tree.Children[0].Children[0].Token.Value != "Site" {
+			t.Errorf("Unexpected attribute for the 'in' operator. Expected 'Site', got %s", tree.Children[0].Children[0].Token.Value)
+		}
+		if tree.Children[1].Token.Value != "eq" {
+			t.Errorf("First child is '%v', not 'eq'", tree.Children[1].Token.Value)
+		}
+	}
+}
+
 func TestFilterTokenizerFunc(t *testing.T) {
 
 	tokenizer := FilterTokenizer()
@@ -163,9 +232,13 @@ func CompareTokens(a, b []*Token) (bool, error) {
 		return false, errors.New("Different lengths")
 	}
 	for i, _ := range a {
-		if a[i].Value != b[i].Value || a[i].Type != b[i].Type {
-			return false, errors.New("Different at index " + strconv.Itoa(i) + " " +
-				a[i].Value + " != " + b[i].Value + " or types are different.")
+		if a[i].Type != b[i].Type {
+			return false, fmt.Errorf("Different token types at index %d. Type: %v != %v. Value: %v",
+				i, a[i].Type, b[i].Type, a[i].Value)
+		}
+		if a[i].Value != b[i].Value {
+			return false, fmt.Errorf("Different token values at index %d. Value: %v != %v",
+				i, a[i].Value, b[i].Value)
 		}
 	}
 	return true, nil
