@@ -72,23 +72,45 @@ func TestFilterAny(t *testing.T) {
 }
 
 func TestFilterDivby(t *testing.T) {
-	tokenizer := FilterTokenizer()
-	input := "Price divby 2 gt 3.5"
-	expect := []*Token{
-		&Token{Value: "Price", Type: FilterTokenLiteral},
-		&Token{Value: "divby", Type: FilterTokenOp},
-		&Token{Value: "2", Type: FilterTokenInteger},
-		&Token{Value: "gt", Type: FilterTokenLogical},
-		&Token{Value: "3.5", Type: FilterTokenFloat},
-	}
-	output, err := tokenizer.Tokenize(input)
-	if err != nil {
-		t.Error(err)
-	}
+	{
+		tokenizer := FilterTokenizer()
+		input := "Price div 2 gt 3.5"
+		expect := []*Token{
+			&Token{Value: "Price", Type: FilterTokenLiteral},
+			&Token{Value: "div", Type: FilterTokenOp},
+			&Token{Value: "2", Type: FilterTokenInteger},
+			&Token{Value: "gt", Type: FilterTokenLogical},
+			&Token{Value: "3.5", Type: FilterTokenFloat},
+		}
+		output, err := tokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+		}
 
-	result, err := CompareTokens(expect, output)
-	if !result {
-		t.Error(err)
+		result, err := CompareTokens(expect, output)
+		if !result {
+			t.Error(err)
+		}
+	}
+	{
+		tokenizer := FilterTokenizer()
+		input := "Price divby 2 gt 3.5"
+		expect := []*Token{
+			&Token{Value: "Price", Type: FilterTokenLiteral},
+			&Token{Value: "divby", Type: FilterTokenOp},
+			&Token{Value: "2", Type: FilterTokenInteger},
+			&Token{Value: "gt", Type: FilterTokenLogical},
+			&Token{Value: "3.5", Type: FilterTokenFloat},
+		}
+		output, err := tokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+		}
+
+		result, err := CompareTokens(expect, output)
+		if !result {
+			t.Error(err)
+		}
 	}
 }
 
