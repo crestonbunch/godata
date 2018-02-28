@@ -57,7 +57,7 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^/", FilterTokenNav)
 	t.Add("^:", FilterTokenColon)
 	t.Add("^,", FilterTokenComma)
-	t.Add("^(eq|ne|gt|ge|lt|le|and|or|not|has)", FilterTokenLogical)
+	t.Add("^(eq|ne|gt|ge|lt|le|and|or|not|has|in)", FilterTokenLogical)
 	t.Add("^(add|sub|mul|div|mod)", FilterTokenOp)
 	t.Add("^(contains|endswith|startswith|length|indexof|substring|tolower|toupper|"+
 		"trim|concat|year|month|day|hour|minute|second|fractionalseconds|date|"+
@@ -70,7 +70,7 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^-?[0-9]+\\.[0-9]+", FilterTokenFloat)
 	t.Add("^-?[0-9]+", FilterTokenInteger)
 	t.Add("^'(''|[^'])*'", FilterTokenString)
-  t.Add("^(true|false)", FilterTokenBoolean)
+	t.Add("^(true|false)", FilterTokenBoolean)
 	t.Add("^[a-zA-Z][a-zA-Z0-9_.]*", FilterTokenLiteral)
 	t.Ignore("^ ", FilterTokenWhitespace)
 
@@ -96,6 +96,7 @@ func FilterParser() *Parser {
 	parser.DefineOperator("isof", 2, OpAssociationLeft, 4)
 	parser.DefineOperator("eq", 2, OpAssociationLeft, 3)
 	parser.DefineOperator("ne", 2, OpAssociationLeft, 3)
+	parser.DefineOperator("in", -1, OpAssociationLeft, 3) // 'in' operator takes a literal list.
 	parser.DefineOperator("and", 2, OpAssociationLeft, 2)
 	parser.DefineOperator("or", 2, OpAssociationLeft, 1)
 	parser.DefineOperator(":", 2, OpAssociationLeft, 1)
