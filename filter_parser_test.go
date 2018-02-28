@@ -1,7 +1,6 @@
 package godata
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 )
@@ -60,6 +59,27 @@ func TestFilterAny(t *testing.T) {
 		&Token{Value: "lt", Type: FilterTokenLogical},
 		&Token{Value: "10", Type: FilterTokenInteger},
 		&Token{Value: ")", Type: FilterTokenCloseParen},
+	}
+	output, err := tokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+	}
+
+	result, err := CompareTokens(expect, output)
+	if !result {
+		t.Error(err)
+	}
+}
+
+func TestFilterDivby(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	input := "Price divby 2 gt 3.5"
+	expect := []*Token{
+		&Token{Value: "Price", Type: FilterTokenLiteral},
+		&Token{Value: "divby", Type: FilterTokenOp},
+		&Token{Value: "2", Type: FilterTokenInteger},
+		&Token{Value: "gt", Type: FilterTokenLogical},
+		&Token{Value: "3.5", Type: FilterTokenFloat},
 	}
 	output, err := tokenizer.Tokenize(input)
 	if err != nil {
@@ -229,7 +249,7 @@ func BenchmarkFilterTokenizer(b *testing.B) {
 // Check if two slices of tokens are the same.
 func CompareTokens(a, b []*Token) (bool, error) {
 	if len(a) != len(b) {
-		return false, errors.New("Different lengths")
+		return false, fmt.Errorf("Different lengths. %d != %d", len(a), len(b))
 	}
 	for i, _ := range a {
 		if a[i].Type != b[i].Type {

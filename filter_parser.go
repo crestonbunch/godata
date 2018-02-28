@@ -58,7 +58,7 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^:", FilterTokenColon)
 	t.Add("^,", FilterTokenComma)
 	t.Add("^(eq|ne|gt|ge|lt|le|and|or|not|has|in)", FilterTokenLogical)
-	t.Add("^(add|sub|mul|div|mod)", FilterTokenOp)
+	t.Add("^(add|sub|mul|divby|div|mod)", FilterTokenOp)
 	t.Add("^(contains|endswith|startswith|length|indexof|substring|tolower|toupper|"+
 		"trim|concat|year|month|day|hour|minute|second|fractionalseconds|date|"+
 		"time|totaloffsetminutes|now|maxdatetime|mindatetime|totalseconds|round|"+
@@ -85,7 +85,8 @@ func FilterParser() *Parser {
 	parser.DefineOperator("not", 1, OpAssociationLeft, 7)
 	parser.DefineOperator("cast", 2, OpAssociationNone, 7)
 	parser.DefineOperator("mul", 2, OpAssociationNone, 6)
-	parser.DefineOperator("div", 2, OpAssociationNone, 6)
+	parser.DefineOperator("div", 2, OpAssociationNone, 6)   // Division
+	parser.DefineOperator("divby", 2, OpAssociationNone, 6) // Decimal Division
 	parser.DefineOperator("mod", 2, OpAssociationNone, 6)
 	parser.DefineOperator("add", 2, OpAssociationNone, 5)
 	parser.DefineOperator("sub", 2, OpAssociationNone, 5)
