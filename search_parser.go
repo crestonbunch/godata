@@ -44,8 +44,8 @@ func SearchTokenizer() *Tokenizer {
 
 func SearchParser() *Parser {
 	parser := EmptyParser()
-	parser.DefineOperator("NOT", 1, OpAssociationNone, 3)
-	parser.DefineOperator("AND", 2, OpAssociationLeft, 2)
-	parser.DefineOperator("OR", 2, OpAssociationLeft, 1)
+	parser.DefineOperator("NOT", 1, OpAssociationNone, 3, false)
+	parser.DefineOperator("AND", 2, OpAssociationLeft, 2, false)
+	parser.DefineOperator("OR", 2, OpAssociationLeft, 1, false)
 	return parser
 }

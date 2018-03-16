@@ -9,11 +9,11 @@ func TestPEMDAS(t *testing.T) {
 	parser := EmptyParser()
 	parser.DefineFunction("sin", 1)
 	parser.DefineFunction("max", 2)
-	parser.DefineOperator("^", 2, OpAssociationRight, 5)
-	parser.DefineOperator("*", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("/", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("+", 2, OpAssociationLeft, 4)
-	parser.DefineOperator("-", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("^", 2, OpAssociationRight, 5, false)
+	parser.DefineOperator("*", 2, OpAssociationLeft, 5, false)
+	parser.DefineOperator("/", 2, OpAssociationLeft, 5, false)
+	parser.DefineOperator("+", 2, OpAssociationLeft, 4, false)
+	parser.DefineOperator("-", 2, OpAssociationLeft, 4, false)
 
 	// 3 + 4 * 2 / ( 1 - 5 ) ^ 2 ^ 3
 	tokens := []*Token{
@@ -63,11 +63,11 @@ func BenchmarkPEMDAS(b *testing.B) {
 	parser := EmptyParser()
 	parser.DefineFunction("sin", 1)
 	parser.DefineFunction("max", 2)
-	parser.DefineOperator("^", 2, OpAssociationRight, 5)
-	parser.DefineOperator("*", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("/", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("+", 2, OpAssociationLeft, 4)
-	parser.DefineOperator("-", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("^", 2, OpAssociationRight, 5, false)
+	parser.DefineOperator("*", 2, OpAssociationLeft, 5, false)
+	parser.DefineOperator("/", 2, OpAssociationLeft, 5, false)
+	parser.DefineOperator("+", 2, OpAssociationLeft, 4, false)
+	parser.DefineOperator("-", 2, OpAssociationLeft, 4, false)
 
 	// 3 + 4 * 2 / ( 1 - 5 ) ^ 2 ^ 3
 	tokens := []*Token{
@@ -95,9 +95,9 @@ func BenchmarkPEMDAS(b *testing.B) {
 
 func TestBoolean(t *testing.T) {
 	parser := EmptyParser()
-	parser.DefineOperator("NOT", 1, OpAssociationNone, 3)
-	parser.DefineOperator("AND", 2, OpAssociationLeft, 2)
-	parser.DefineOperator("OR", 2, OpAssociationLeft, 1)
+	parser.DefineOperator("NOT", 1, OpAssociationNone, 3, false)
+	parser.DefineOperator("AND", 2, OpAssociationLeft, 2, false)
+	parser.DefineOperator("OR", 2, OpAssociationLeft, 1, false)
 
 	// (A OR NOT B) AND C OR B
 	tokens := []*Token{
@@ -141,11 +141,11 @@ func TestFunc(t *testing.T) {
 	parser.DefineFunction("sin", 1)
 	parser.DefineFunction("max", 2)
 	parser.DefineFunction("volume", 3)
-	parser.DefineOperator("^", 2, OpAssociationRight, 5)
-	parser.DefineOperator("*", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("/", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("+", 2, OpAssociationLeft, 4)
-	parser.DefineOperator("-", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("^", 2, OpAssociationRight, 5, false)
+	parser.DefineOperator("*", 2, OpAssociationLeft, 5, false)
+	parser.DefineOperator("/", 2, OpAssociationLeft, 5, false)
+	parser.DefineOperator("+", 2, OpAssociationLeft, 4, false)
+	parser.DefineOperator("-", 2, OpAssociationLeft, 4, false)
 
 	// max(sin(5*pi)+3, sin(5)+volume(3,2,4)/2)
 	tokens := []*Token{
@@ -207,11 +207,11 @@ func TestTree(t *testing.T) {
 	parser := EmptyParser()
 	parser.DefineFunction("sin", 1)
 	parser.DefineFunction("max", 2)
-	parser.DefineOperator("^", 2, OpAssociationRight, 5)
-	parser.DefineOperator("*", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("/", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("+", 2, OpAssociationLeft, 4)
-	parser.DefineOperator("-", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("^", 2, OpAssociationRight, 5, false)
+	parser.DefineOperator("*", 2, OpAssociationLeft, 5, false)
+	parser.DefineOperator("/", 2, OpAssociationLeft, 5, false)
+	parser.DefineOperator("+", 2, OpAssociationLeft, 4, false)
+	parser.DefineOperator("-", 2, OpAssociationLeft, 4, false)
 
 	// sin ( max ( 2, 3 ) / 3 * 3.1415 )
 	tokens := []*Token{
@@ -269,11 +269,11 @@ func BenchmarkBuildTree(b *testing.B) {
 	parser := EmptyParser()
 	parser.DefineFunction("sin", 1)
 	parser.DefineFunction("max", 2)
-	parser.DefineOperator("^", 2, OpAssociationRight, 5)
-	parser.DefineOperator("*", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("/", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("+", 2, OpAssociationLeft, 4)
-	parser.DefineOperator("-", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("^", 2, OpAssociationRight, 5, false)
+	parser.DefineOperator("*", 2, OpAssociationLeft, 5, false)
+	parser.DefineOperator("/", 2, OpAssociationLeft, 5, false)
+	parser.DefineOperator("+", 2, OpAssociationLeft, 4, false)
+	parser.DefineOperator("-", 2, OpAssociationLeft, 4, false)
 
 	// sin ( max ( 2, 3 ) / 3 * 3.1415 )
 	tokens := []*Token{

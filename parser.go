@@ -1,6 +1,7 @@
 package godata
 
 import (
+	"fmt"
 	"regexp"
 )
 
@@ -99,6 +100,10 @@ type Operator struct {
 	Operands int
 	// Rank of precedence
 	Precedence int
+	// Specifies whether the right-side operand is single value (by default) or multi-value.
+	// For example, "City in ('San Jose', 'Chicago', 'Dallas')"
+	// For left-side operand, the parser algorithm needs to change to support backtracking.
+	MultiValueOperand bool
 }
 
 type Function struct {
@@ -117,10 +122,12 @@ func EmptyParser() *Parser {
 	return &Parser{make(map[string]*Operator, 0), make(map[string]*Function)}
 }
 
-// Add an operator to the language. Provide the token, a precedence, and
-// whether the operator is left, right, or not associative.
-func (p *Parser) DefineOperator(token string, operands, assoc, precedence int) {
-	p.Operators[token] = &Operator{token, assoc, operands, precedence}
+// Add an operator to the language. Provide the token, the expected number of arguments,
+// whether the operator is left, right, or not associative, and a precedence.
+// The operandsCardinality specifies whether the operands are single-value or multi-value, which must
+// be a comma-separated list enclosed in parenthesis.
+func (p *Parser) DefineOperator(token string, operands, assoc, precedence int, multiValueOperand bool) {
+	p.Operators[token] = &Operator{token, assoc, operands, precedence, multiValueOperand}
 }
 
 // Add a function to the language
@@ -128,18 +135,35 @@ func (p *Parser) DefineFunction(token string, params int) {
 	p.Functions[token] = &Function{token, params}
 }
 
+// isGroupingOperator returns true if the specified token uses
+// parenthesis as multi-value grouping delimiters.
+func (p *Parser) isGroupingOperator(stack *tokenStack, token *Token) bool {
+	if !stack.Empty() {
+		if o1, ok := p.Operators[stack.Peek().Value]; ok {
+			if o1.MultiValueOperand {
+				// The '(' token is used as a grouping operator.
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Parse the input string of tokens using the given definitions of operators
 // and functions. (Everything else is assumed to be a literal.) Uses the
 // Shunting-Yard algorithm.
 func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
-	queue := tokenQueue{}
-	stack := tokenStack{}
+	queue := tokenQueue{} // output queue in postfix
+	stack := tokenStack{} // Operator stack
 
 	for len(tokens) > 0 {
 		token := tokens[0]
 		tokens = tokens[1:]
-
 		if _, ok := p.Functions[token.Value]; ok {
+			if len(tokens) == 0 || tokens[0].Value != "(" {
+				// A function token must be followed by open parenthesis token.
+				return nil, BadRequestError(fmt.Sprintf("Function '%s' must be followed by '('", token.Value))
+			}
 			// push functions onto the stack
 			stack.Push(token)
 		} else if token.Value == "," {
@@ -167,19 +191,52 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 			}
 			stack.Push(token)
 		} else if token.Value == "(" {
+			// In OData, the parenthesis tokens can be used:
+			// - To set explicit precedence order, such as "(a + 2) x b"
+			//   These precedence tokens are removed while parsing the OData query.
+			// - As a grouping operator for multi-value sets, such as "City in ('San Jose', 'Chicago', 'Dallas')"
+			//   The grouping tokens are retained while parsing the OData query.
+			if p.isGroupingOperator(&stack, token) {
+				// The '(' token is used as a grouping operator.
+				queue.Enqueue(token)
+			} else {
+				// The '(' token is used to set explicit precedence order. Do not enqueue
+			}
 			// push open parens onto the stack
 			stack.Push(token)
 		} else if token.Value == ")" {
 			// if we find a close paren, pop things off the stack
-			for !stack.Empty() && stack.Peek().Value != "(" {
-				queue.Enqueue(stack.Pop())
+			multiValueOperand := false
+			for !stack.Empty() {
+				if stack.Peek().Value == "(" {
+					// Pop the stack so we can see the second element in the stack.
+					t := stack.Pop()
+					if !stack.Empty() && p.isGroupingOperator(&stack, stack.Peek()) {
+						// The ')' token is used as the closing grouping operator.
+						queue.Enqueue(token)       // The ')' closing parenthesis
+						queue.Enqueue(stack.Pop()) // The operator that takes a multi-value operand.
+						multiValueOperand = true
+					} else {
+						// In this case, '(' is a precedence token, we stop popping the operators
+						// from the stack, and we need to re-add the last token back on the stack,
+						// which was done to inspect whether the second operator in the stack takes
+						// a multi-value operand.
+						stack.Push(t)
+						break
+					}
+				} else {
+					queue.Enqueue(stack.Pop())
+				}
 			}
 			// there was an error parsing
 			if stack.Empty() {
-				return nil, BadRequestError("Parse error. Mismatched parenthesis.")
+				if !multiValueOperand {
+					return nil, BadRequestError("Parse error. Mismatched parenthesis.")
+				}
+			} else {
+				// pop off open paren
+				stack.Pop()
 			}
-			// pop off open paren
-			stack.Pop()
 			// if next token is a function, move it to the queue
 			if !stack.Empty() {
 				if _, ok := p.Functions[stack.Peek().Value]; ok {
@@ -233,19 +290,24 @@ func (p *Parser) PostfixToTree(queue *tokenQueue) (*ParseNode, error) {
 			node := stack.Pop()
 			o := p.Operators[node.Token.Value]
 			// pop off operands
-			if o.Operands == -1 {
-				// This is a operator with a list of arguments, such as the 'in' operator.
-				// Pop off the entire stack.
-				for !stack.Empty() {
-					// prepend children so they get added in the right order
-					node.Children = append([]*ParseNode{stack.Pop()}, node.Children...)
-				}
-			} else {
-				for i := 0; i < o.Operands; i++ {
-					// prepend children so they get added in the right order
-					node.Children = append([]*ParseNode{stack.Pop()}, node.Children...)
-				}
+			for i := 0; i < o.Operands; i++ {
+				// prepend children so they get added in the right order
+				node.Children = append([]*ParseNode{stack.Pop()}, node.Children...)
 			}
+			stack.Push(node)
+		} else if stack.Peek().Token.Value == ")" {
+			// This is a multi-value operand, such as the 'in' operator.
+			// In this case, the parenthesis is not used as a precedence delimiter.
+			// Pop the close parenthesis.
+			stack.Pop()
+			var children []*ParseNode
+			for !stack.Empty() && stack.Peek().Token.Value != "(" {
+				// prepend children so they get added in the right order
+				children = append([]*ParseNode{stack.Pop()}, children...)
+			}
+			// Pop the open parenthesis
+			node := stack.Pop()
+			node.Children = children
 			stack.Push(node)
 		}
 	}
