@@ -601,7 +601,7 @@ func TestNestedPath(t *testing.T) {
 	}
 }
 
-func TestLambda(t *testing.T) {
+func TestLambda1(t *testing.T) {
 	input := "Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')"
 	tokens, err := GlobalFilterTokenizer.Tokenize(input)
 	if err != nil {
@@ -620,16 +620,158 @@ func TestLambda(t *testing.T) {
 		return
 	}
 
-	if tree.Token.Value != "/" {
-		t.Error("Root is '" + tree.Token.Value + "' not '/'")
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Tags", 1},
+		{"any", 1},
+		{":", 2},
+		{"var", 3},
+		{"and", 3},
+		{"eq", 4},
+		{"/", 5},
+		{"var", 6},
+		{"Key", 6},
+		{"'Site'", 5},
+		{"eq", 4},
+		{"/", 5},
+		{"var", 6},
+		{"Value", 6},
+		{"'London'", 5},
 	}
-	if tree.Children[0].Token.Value != "Tags" {
-		t.Error("First child is '" + tree.Children[0].Token.Value + "' not 'Tags'")
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree, 0)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
-	if tree.Children[1].Token.Value != "any" {
-		t.Error("First child is '" + tree.Children[1].Token.Value + "' not 'any'")
+}
+func TestLambda2(t *testing.T) {
+	input := "Tags/any(var:var/Key eq 'Site' and var/Value eq 'London' or Price gt 1.0)"
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
 	}
-	if tree.Children[1].Children[0].Token.Value != ":" {
-		t.Error("First child is '" + tree.Children[1].Children[0].Token.Value + "' not ':'")
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
 	}
+
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Tags", 1},
+		{"any", 1},
+		{":", 2},
+		{"var", 3},
+		{"or", 3},
+		{"and", 4},
+		{"eq", 5},
+		{"/", 6},
+		{"var", 7},
+		{"Key", 7},
+		{"'Site'", 6},
+		{"eq", 5},
+		{"/", 6},
+		{"var", 7},
+		{"Value", 7},
+		{"'London'", 6},
+		{"gt", 4},
+		{"Price", 5},
+		{"1.0", 5},
+	}
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree, 0)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
+func TestLambda3(t *testing.T) {
+	input := "Tags/any(var:var/Key eq 'Site' and var/Value eq 'London' or Price gt 1.0 or contains(var/Value, 'Smith'))"
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Tags", 1},
+		{"any", 1},
+		{":", 2},
+		{"var", 3},
+		{"or", 3},
+		{"or", 4},
+		{"and", 5},
+		{"eq", 6},
+		{"/", 7},
+		{"var", 8},
+		{"Key", 8},
+		{"'Site'", 7},
+		{"eq", 6},
+		{"/", 7},
+		{"var", 8},
+		{"Value", 8},
+		{"'London'", 7},
+		{"gt", 5},
+		{"Price", 6},
+		{"1.0", 6},
+		{"contains", 4},
+		{"/", 5},
+		{"var", 6},
+		{"Value", 6},
+		{"'Smith'", 5},
+	}
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree, 0)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
+// CompareTree compares a tree representing a ODATA filter with the expected results.
+// The expected values are a slice of nodes in breadth-first traversal.
+func CompareTree(node *ParseNode, expect []expectedParseNode, pos *int, level int) error {
+	if *pos >= len(expect) {
+		return fmt.Errorf("Unexpected token. Got %s, expected no value", node.Token.Value)
+	}
+	if node.Token.Value != expect[*pos].Value {
+		return fmt.Errorf("Unexpected token. Got %s -> %d, expected: %s -> %d", node.Token.Value, level, expect[*pos].Value, expect[*pos].Level)
+	}
+	if level != expect[*pos].Level {
+		return fmt.Errorf("Unexpected level. Got %s -> %d, expected: %s -> %d", node.Token.Value, level, expect[*pos].Value, expect[*pos].Level)
+	}
+	for _, v := range node.Children {
+		*pos++
+		if err := CompareTree(v, expect, pos, level+1); err != nil {
+			return err
+		}
+	}
+	if level == 0 && *pos+1 != len(expect) {
+		return fmt.Errorf("Expected number of tokens: %d, got %d", len(expect), *pos+1)
+	}
+	return nil
+}
+
+type expectedParseNode struct {
+	Value string
+	Level int
 }
