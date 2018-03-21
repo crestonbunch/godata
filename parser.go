@@ -216,6 +216,7 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 						queue.Enqueue(token)       // The ')' closing parenthesis
 						queue.Enqueue(stack.Pop()) // The operator that takes a multi-value operand.
 						multiValueOperand = true
+						// Continue dequeuing until we find a precedence delimiter
 					} else {
 						// In this case, '(' is a precedence token, we stop popping the operators
 						// from the stack, and we need to re-add the last token back on the stack,
@@ -234,8 +235,10 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 					return nil, BadRequestError("Parse error. Mismatched parenthesis.")
 				}
 			} else {
-				// pop off open paren
-				stack.Pop()
+				if !multiValueOperand {
+					// pop off open paren
+					stack.Pop()
+				}
 			}
 			// if next token is a function, move it to the queue
 			if !stack.Empty() {
@@ -256,7 +259,6 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 		}
 		queue.Enqueue(stack.Pop())
 	}
-
 	return &queue, nil
 }
 
@@ -269,7 +271,6 @@ func (p *Parser) PostfixToTree(queue *tokenQueue) (*ParseNode, error) {
 	for t != nil {
 		t = t.Next
 	}
-
 	for !queue.Empty() {
 		// push the token onto the stack as a tree node
 		currNode = &ParseNode{queue.Dequeue(), nil, make([]*ParseNode, 0)}
@@ -281,6 +282,9 @@ func (p *Parser) PostfixToTree(queue *tokenQueue) (*ParseNode, error) {
 			f := p.Functions[node.Token.Value]
 			// pop off function parameters
 			for i := 0; i < f.Params; i++ {
+				if stack.Empty() {
+					return nil, fmt.Errorf("Insufficient number of operands for function '%s'", node.Token.Value)
+				}
 				// prepend children so they get added in the right order
 				node.Children = append([]*ParseNode{stack.Pop()}, node.Children...)
 			}
@@ -291,6 +295,9 @@ func (p *Parser) PostfixToTree(queue *tokenQueue) (*ParseNode, error) {
 			o := p.Operators[node.Token.Value]
 			// pop off operands
 			for i := 0; i < o.Operands; i++ {
+				if stack.Empty() {
+					return nil, fmt.Errorf("Insufficient number of operands for operator '%s'", node.Token.Value)
+				}
 				// prepend children so they get added in the right order
 				node.Children = append([]*ParseNode{stack.Pop()}, node.Children...)
 			}
@@ -311,7 +318,6 @@ func (p *Parser) PostfixToTree(queue *tokenQueue) (*ParseNode, error) {
 			stack.Push(node)
 		}
 	}
-
 	return currNode, nil
 }
 
@@ -434,4 +440,14 @@ func (s *nodeStack) Peek() *ParseNode {
 
 func (s *nodeStack) Empty() bool {
 	return s.Head == nil
+}
+
+func (s *nodeStack) String() string {
+	output := ""
+	currNode := s.Head
+	for currNode != nil {
+		output += " " + currNode.ParseNode.Token.Value
+		currNode = currNode.Prev
+	}
+	return output
 }

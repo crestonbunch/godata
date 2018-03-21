@@ -114,6 +114,66 @@ func TestFilterDivby(t *testing.T) {
 	}
 }
 
+func TestFilterNot(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	input := "not ( City in ( 'Seattle', 'Atlanta' ) )"
+
+	{
+		expect := []*Token{
+			&Token{Value: "not", Type: FilterTokenLogical},
+			&Token{Value: "(", Type: FilterTokenOpenParen},
+			&Token{Value: "City", Type: FilterTokenLiteral},
+			&Token{Value: "in", Type: FilterTokenLogical},
+			&Token{Value: "(", Type: FilterTokenOpenParen},
+			&Token{Value: "'Seattle'", Type: FilterTokenString},
+			&Token{Value: ",", Type: FilterTokenComma},
+			&Token{Value: "'Atlanta'", Type: FilterTokenString},
+			&Token{Value: ")", Type: FilterTokenCloseParen},
+			&Token{Value: ")", Type: FilterTokenCloseParen},
+		}
+		output, err := tokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+		}
+		result, err := CompareTokens(expect, output)
+		if !result {
+			t.Error(err)
+		}
+	}
+	{
+		tokens, err := GlobalFilterTokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		output, err := GlobalFilterParser.InfixToPostfix(tokens)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		tree, err := GlobalFilterParser.PostfixToTree(output)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		var expect []expectedParseNode = []expectedParseNode{
+			{"not", 0},
+			{"in", 1},
+			{"City", 2},
+			{"(", 2},
+			{"'Seattle'", 3},
+			{"'Atlanta'", 3},
+		}
+		pos := 0
+		err = CompareTree(tree, expect, &pos, 0)
+		if err != nil {
+			printTree(tree, 0)
+			t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+		}
+
+	}
+}
+
 func TestFilterAll(t *testing.T) {
 	tokenizer := FilterTokenizer()
 	input := "Tags/all(d:d/Key eq 'Site')"
@@ -302,60 +362,73 @@ func TestNestedFunction(t *testing.T) {
 	}
 }
 
-func TestInvalidFunctionSyntax(t *testing.T) {
-	// The URLs below are not valid ODATA syntax, it should return an error.
-	// Note that previously the godata library was not returning an error.
-	// GET serviceRoot/Airports?$filter=Location/Address contains 'San Francisco'
-	{
-		input := "LastName contains 'Smith'"
+func TestValidFilterSyntax(t *testing.T) {
+	queries := []string{
+		"City eq 'Dallas'",
+		"City eq ('Dallas')",
+		"'Dallas' eq City",
+		"not (City eq 'Dallas')",
+		"City in ('Dallas')",
+		"(City in ('Dallas'))",
+		"(City in ('Dallas', 'Houston'))",
+		"not (City in ('Dallas'))",
+		"not (City in ('Dallas', 'Houston'))",
+		"not (((City eq 'Dallas')))",
+	}
+	for _, input := range queries {
 		tokens, err := GlobalFilterTokenizer.Tokenize(input)
 		if err != nil {
-			t.Error(err)
-			return
+			t.Errorf("Error parsing query %s", input)
 		}
-		_, err = GlobalFilterParser.InfixToPostfix(tokens)
-		if err == nil {
-			t.Errorf("The query '%s' is not valid ODATA syntax. The ODATA parser should return an error", input)
-			return
+		output, err := GlobalFilterParser.InfixToPostfix(tokens)
+		if err != nil {
+			t.Errorf("Error parsing query %s", input)
+		}
+		_, err = GlobalFilterParser.PostfixToTree(output)
+		if err != nil {
+			t.Errorf("Error parsing query %s", input)
 		}
 	}
-	{
-		// Extraneous closing parenthesis
-		input := "contains(LastName, 'Smith'))"
-		tokens, err := GlobalFilterTokenizer.Tokenize(input)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		_, err = GlobalFilterParser.InfixToPostfix(tokens)
-		if err == nil {
-			t.Errorf("The query '%s' is not valid ODATA syntax. The ODATA parser should return an error", input)
-			return
-		}
+}
+
+// The URLs below are not valid ODATA syntax, the parser should return an error.
+func TestInvalidFilterSyntax(t *testing.T) {
+	queries := []string{
+		"City eq",                 // Missing operand
+		"City eq (",               // Wrong operand
+		"City eq )",               // Wrong operand
+		"not [City eq 'Dallas']",  // Wrong delimiter
+		"not (City eq )",          // Missing operand
+		"not ((City eq 'Dallas'",  // Missing closing parenthesis
+		"not (City eq 'Dallas'",   // Missing closing parenthesis
+		"not (City eq 'Dallas'))", // Extraneous closing parenthesis
+		"not City eq 'Dallas')",   // Missing open parenthesis
+		"not (City eq 'Dallas') and Name eq 'Houston')",
+		"LastName contains 'Smith'",    // Previously the godata library was not returning an error.
+		"contains",                     // Function with missing parenthesis and arguments
+		"contains()",                   // Function with missing arguments
+		"contains LastName, 'Smith'",   // Missing parenthesis
+		"contains(LastName)",           // Insufficent number of function arguments
+		"contains(LastName, 'Smith'))", // Extraneous closing parenthesis
+		"contains(LastName, 'Smith'",   // Missing closing parenthesis
+		"contains LastName, 'Smith')",  // Missing open parenthesis
+		//"City eq 'Dallas' 'Houston'",   // extraneous string value
+		//"contains(Name, 'a', 'b', 'c', 'd')", // Too many function arguments
 	}
-	{
-		// Missing closing parenthesis
-		input := "contains(LastName, 'Smith'"
+	for _, input := range queries {
 		tokens, err := GlobalFilterTokenizer.Tokenize(input)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		_, err = GlobalFilterParser.InfixToPostfix(tokens)
 		if err == nil {
-			t.Errorf("The query '%s' is not valid ODATA syntax. The ODATA parser should return an error", input)
-			return
+			var output *tokenQueue
+			output, err = GlobalFilterParser.InfixToPostfix(tokens)
+			if err == nil {
+				var tree *ParseNode
+				tree, err = GlobalFilterParser.PostfixToTree(output)
+				if err == nil {
+					// The parser has incorrectly determined the syntax is valid.
+					printTree(tree, 0)
+				}
+			}
 		}
-	}
-	{
-		// Missing open parenthesis
-		input := "contains LastName, 'Smith')"
-		tokens, err := GlobalFilterTokenizer.Tokenize(input)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		_, err = GlobalFilterParser.InfixToPostfix(tokens)
 		if err == nil {
 			t.Errorf("The query '%s' is not valid ODATA syntax. The ODATA parser should return an error", input)
 			return
@@ -365,7 +438,6 @@ func TestInvalidFunctionSyntax(t *testing.T) {
 
 // See http://docs.oasis-open.org/odata/odata/v4.01/csprd02/part1-protocol/odata-v4.01-csprd02-part1-protocol.html#_Toc486263411
 // Test 'in', which is the 'Is a member of' operator.
-
 func TestFilterIn(t *testing.T) {
 	tokenizer := FilterTokenizer()
 	input := "contains(LastName, 'Smith') and Site in ('London', 'Paris', 'San Francisco', 'Dallas') and FirstName eq 'John'"

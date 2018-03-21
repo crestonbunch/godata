@@ -237,8 +237,11 @@ func TestTree(t *testing.T) {
 		t.Error(err)
 	}
 
-	root, _ := parser.PostfixToTree(result)
-
+	root, err := parser.PostfixToTree(result)
+	if err != nil {
+		t.Error("Error parsing query")
+		return
+	}
 	if root.Token.Value != "sin" {
 		t.Error("Root node is not sin")
 	}
