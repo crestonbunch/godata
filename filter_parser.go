@@ -6,22 +6,22 @@ const (
 	FilterTokenWhitespace
 	FilterTokenNav
 	FilterTokenColon // for 'any' and 'all' lambda operators
-	FilterTokenComma
+	FilterTokenComma // 5
 	FilterTokenLogical
 	FilterTokenOp
 	FilterTokenFunc
 	FilterTokenLambda
-	FilterTokenNull
+	FilterTokenNull // 10
 	FilterTokenIt
 	FilterTokenRoot
 	FilterTokenFloat
 	FilterTokenInteger
-	FilterTokenString
+	FilterTokenString // 15
 	FilterTokenDate
 	FilterTokenTime
 	FilterTokenDateTime
 	FilterTokenBoolean
-	FilterTokenLiteral
+	FilterTokenLiteral // 20
 )
 
 var GlobalFilterTokenizer = FilterTokenizer()
@@ -57,12 +57,14 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^/", FilterTokenNav)
 	t.Add("^:", FilterTokenColon)
 	t.Add("^,", FilterTokenComma)
+	t.Add("^(geo.distance|geo.intersects|geo.length)", FilterTokenFunc)
+	t.Add("^(substringof|substring)", FilterTokenFunc)
 	t.Add("^(eq|ne|gt|ge|lt|le|and|or|not|has|in)", FilterTokenLogical)
 	t.Add("^(add|sub|mul|divby|div|mod)", FilterTokenOp)
-	t.Add("^(contains|endswith|startswith|length|indexof|substring|tolower|toupper|"+
+	t.Add("^(contains|endswith|startswith|length|indexof|tolower|toupper|"+
 		"trim|concat|year|month|day|hour|minute|second|fractionalseconds|date|"+
 		"time|totaloffsetminutes|now|maxdatetime|mindatetime|totalseconds|round|"+
-		"floor|ceiling|isof|cast|geo.distance|geo.intersects|geo.length)", FilterTokenFunc)
+		"floor|ceiling|isof|cast)", FilterTokenFunc)
 	t.Add("^(any|all)", FilterTokenLambda)
 	t.Add("^null", FilterTokenNull)
 	t.Add("^\\$it", FilterTokenIt)
@@ -94,7 +96,6 @@ func FilterParser() *Parser {
 	parser.DefineOperator("ge", 2, OpAssociationLeft, 5, false)
 	parser.DefineOperator("lt", 2, OpAssociationLeft, 5, false)
 	parser.DefineOperator("le", 2, OpAssociationLeft, 5, false)
-	parser.DefineOperator("isof", 2, OpAssociationLeft, 5, false)
 	parser.DefineOperator("eq", 2, OpAssociationLeft, 4, false)
 	parser.DefineOperator("ne", 2, OpAssociationLeft, 4, false)
 	parser.DefineOperator("in", 2, OpAssociationLeft, 4, true) // 'in' operator takes a literal list.
@@ -107,6 +108,7 @@ func FilterParser() *Parser {
 	parser.DefineFunction("length", 1)
 	parser.DefineFunction("indexof", 2)
 	parser.DefineFunction("substring", 2)
+	parser.DefineFunction("substringof", 2)
 	parser.DefineFunction("tolower", 1)
 	parser.DefineFunction("toupper", 1)
 	parser.DefineFunction("trim", 1)

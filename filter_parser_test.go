@@ -364,6 +364,44 @@ func TestNestedFunction(t *testing.T) {
 
 func TestValidFilterSyntax(t *testing.T) {
 	queries := []string{
+		// String functions
+		"contains(CompanyName,'freds')",
+		"endswith(CompanyName,'Futterkiste')",
+		"startswith(CompanyName,'Alfr')",
+		"length(CompanyName) eq 19",
+		"indexof(CompanyName,'lfreds') eq 1",
+		"substring(CompanyName,1) eq 'lfreds Futterkiste'",
+		"substringof('Alfreds', CompanyName) eq true",
+		"tolower(CompanyName) eq 'alfreds futterkiste'",
+		"toupper(CompanyName) eq 'ALFREDS FUTTERKISTE'",
+		"trim(CompanyName) eq 'Alfreds Futterkiste'",
+		"concat(concat(City,', '), Country) eq 'Berlin, Germany'",
+		// Date and Time functions
+		"year(BirthDate) eq 0",
+		"month(BirthDate) eq 12",
+		"day(StartTime) eq 8",
+		"hour(StartTime) eq 1",
+		"minute(StartTime) eq 0",
+		"second(StartTime) eq 0",
+		"date(StartTime) ne date(EndTime)",
+		"totaloffsetminutes(StartTime) eq 60",
+		"StartTime eq mindatetime()",
+		"EndTime eq maxdatetime()",
+		"time(StartTime) le StartOfDay",
+		"time('2015-10-14T23:30:00.104+02:00') lt now()",
+		"time(2015-10-14T23:30:00.104+02:00) lt now()",
+		// Math functions
+		"round(Freight) eq 32",
+		"floor(Freight) eq 32",
+		"ceiling(Freight) eq 33",
+		// Type functions
+		"isof(ShipCountry,Edm.String)",
+		"cast(ShipCountry,Edm.String)",
+		// Geo functions
+		"geo.distance(CurrentPosition,TargetPosition)",
+		"geo.length(DirectRoute)",
+		"geo.intersects(Position,TargetArea)",
+		// Various parenthesis combinations
 		"City eq 'Dallas'",
 		"City eq ('Dallas')",
 		"'Dallas' eq City",
@@ -374,6 +412,7 @@ func TestValidFilterSyntax(t *testing.T) {
 		"not (City in ('Dallas'))",
 		"not (City in ('Dallas', 'Houston'))",
 		"not (((City eq 'Dallas')))",
+		"not (City eq 'Dallas') or Name in ('a', 'b', 'c') and not (State eq 'California')",
 	}
 	for _, input := range queries {
 		tokens, err := GlobalFilterTokenizer.Tokenize(input)
@@ -673,6 +712,70 @@ func TestNestedPath(t *testing.T) {
 	}
 }
 
+func TestSubstringofFunction(t *testing.T) {
+	// Previously, the parser was incorrectly interpreting the 'substring' function as the 'sub' operator.
+	input := "substringof('Alfreds', CompanyName) eq true"
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"eq", 0},
+		{"substringof", 1},
+		{"'Alfreds'", 2},
+		{"CompanyName", 2},
+		{"true", 1},
+	}
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree, 0)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
+func TestGeoFunctions(t *testing.T) {
+	// Previously, the parser was incorrectly interpreting the 'geo.xxx' functions as the 'ge' operator.
+	input := "geo.distance(CurrentPosition,TargetPosition)"
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"geo.distance", 0},
+		{"CurrentPosition", 1},
+		{"TargetPosition", 1},
+	}
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree, 0)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
 func TestLambda1(t *testing.T) {
 	input := "Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')"
 	tokens, err := GlobalFilterTokenizer.Tokenize(input)
@@ -685,7 +788,6 @@ func TestLambda1(t *testing.T) {
 		t.Error(err)
 		return
 	}
-
 	tree, err := GlobalFilterParser.PostfixToTree(output)
 	if err != nil {
 		t.Error(err)
