@@ -73,7 +73,7 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^-?[0-9]+", FilterTokenInteger)
 	t.Add("^'(''|[^'])*'", FilterTokenString)
 	t.Add("^(true|false)", FilterTokenBoolean)
-	t.Add("^[a-zA-Z][a-zA-Z0-9_.]*", FilterTokenLiteral)
+	t.Add("^@*[a-zA-Z][a-zA-Z0-9_.]*", FilterTokenLiteral) // The optional '@' character is used to identify parameter aliases
 	t.Ignore("^ ", FilterTokenWhitespace)
 
 	return &t
@@ -130,7 +130,7 @@ func FilterParser() *Parser {
 	parser.DefineFunction("round", []int{1})
 	parser.DefineFunction("floor", []int{1})
 	parser.DefineFunction("ceiling", []int{1})
-	parser.DefineFunction("isof", []int{2})
+	parser.DefineFunction("isof", []int{1, 2}) // isof function can take one or two arguments.
 	parser.DefineFunction("cast", []int{2})
 	parser.DefineFunction("geo.distance", []int{2})
 	parser.DefineFunction("geo.intersects", []int{2})

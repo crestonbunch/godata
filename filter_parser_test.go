@@ -399,7 +399,11 @@ func TestValidFilterSyntax(t *testing.T) {
 		"Price div 2 eq 3",
 		// Type functions
 		"isof(ShipCountry,Edm.String)",
+		"isof(NorthwindModel.BigOrder)",
 		"cast(ShipCountry,Edm.String)",
+		// Parameter aliases
+		// See http://docs.oasis-open.org/odata/odata/v4.0/errata03/os/complete/part1-protocol/odata-v4.0-errata03-os-part1-protocol-complete.html#_Toc453752288
+		"Region eq @p1", // Aliases start with @
 		// Geo functions
 		"geo.distance(CurrentPosition,TargetPosition)",
 		"geo.length(DirectRoute)",
@@ -425,6 +429,9 @@ func TestValidFilterSyntax(t *testing.T) {
 		// Grouping
 		"(4 add 5) mod (4 sub 1) eq 0",
 		"not (City eq 'Dallas') or Name in ('a', 'b', 'c') and not (State eq 'California')",
+		// Nested functions
+		"length(trim(CompanyName)) eq length(CompanyName)",
+		"concat(concat(City, ', '), Country) eq 'Berlin, Germany'",
 		// Various parenthesis combinations
 		"City eq 'Dallas'",
 		"City eq ('Dallas')",
