@@ -394,6 +394,8 @@ func TestValidFilterSyntax(t *testing.T) {
 		"round(Freight) eq 32",
 		"floor(Freight) eq 32",
 		"ceiling(Freight) eq 33",
+		"Rating mod 5 eq 0",
+		"Price div 2 eq 3",
 		// Type functions
 		"isof(ShipCountry,Edm.String)",
 		"cast(ShipCountry,Edm.String)",
@@ -423,9 +425,11 @@ func TestValidFilterSyntax(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error parsing query %s", input)
 		}
-		_, err = GlobalFilterParser.PostfixToTree(output)
+		tree, err := GlobalFilterParser.PostfixToTree(output)
 		if err != nil {
 			t.Errorf("Error parsing query %s", input)
+		} else if tree != nil {
+			//printTree(tree, 0)
 		}
 	}
 }
