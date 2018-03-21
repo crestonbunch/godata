@@ -3,6 +3,7 @@ package godata
 import (
 	"fmt"
 	"regexp"
+	"sort"
 )
 
 const (
@@ -109,7 +110,7 @@ type Operator struct {
 type Function struct {
 	Token string
 	// The number of parameters this function accepts
-	Params int
+	Params []int
 }
 
 type ParseNode struct {
@@ -131,7 +132,8 @@ func (p *Parser) DefineOperator(token string, operands, assoc, precedence int, m
 }
 
 // Add a function to the language
-func (p *Parser) DefineFunction(token string, params int) {
+func (p *Parser) DefineFunction(token string, params []int) {
+	sort.Sort(sort.Reverse(sort.IntSlice(params)))
 	p.Functions[token] = &Function{token, params}
 }
 
@@ -281,9 +283,25 @@ func (p *Parser) PostfixToTree(queue *tokenQueue) (*ParseNode, error) {
 			node := stack.Pop()
 			f := p.Functions[node.Token.Value]
 			// pop off function parameters
-			for i := 0; i < f.Params; i++ {
+			idx := 0
+			argCount := f.Params[idx]
+			for i := 0; i < argCount; i++ {
 				if stack.Empty() {
-					return nil, fmt.Errorf("Insufficient number of operands for function '%s'", node.Token.Value)
+					// Some functions, e.g. substring, can take a variable number of arguments.
+					foundMatch := false
+					for idx < (len(f.Params) - 1) {
+						idx++
+						argCount = f.Params[idx]
+						if i == argCount {
+							foundMatch = true
+							break
+						}
+					}
+					if !foundMatch {
+						return nil, fmt.Errorf("Insufficient number of operands for function '%s'", node.Token.Value)
+					} else {
+						break
+					}
 				}
 				// prepend children so they get added in the right order
 				node.Children = append([]*ParseNode{stack.Pop()}, node.Children...)

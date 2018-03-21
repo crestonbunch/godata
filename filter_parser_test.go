@@ -371,6 +371,7 @@ func TestValidFilterSyntax(t *testing.T) {
 		"length(CompanyName) eq 19",
 		"indexof(CompanyName,'lfreds') eq 1",
 		"substring(CompanyName,1) eq 'lfreds Futterkiste'",
+		"substring(CompanyName,1,2) eq 'lf'", // substring with 3 arguments.
 		"substringof('Alfreds', CompanyName) eq true",
 		"tolower(CompanyName) eq 'alfreds futterkiste'",
 		"toupper(CompanyName) eq 'ALFREDS FUTTERKISTE'",
@@ -403,6 +404,27 @@ func TestValidFilterSyntax(t *testing.T) {
 		"geo.distance(CurrentPosition,TargetPosition)",
 		"geo.length(DirectRoute)",
 		"geo.intersects(Position,TargetArea)",
+		// Logical operators
+		"Name eq 'Milk'",
+		"Name ne 'Milk'",
+		"Name gt 'Milk'",
+		"Name ge 'Milk'",
+		"Name lt 'Milk'",
+		"Name le 'Milk'",
+		"Name eq 'Milk' and Price lt 2.55",
+		"not endswith(Name,'ilk')",
+		"Name eq 'Milk' or Price lt 2.55",
+		//"style has Sales.Pattern'Yellow'", // TODO
+		// Arithmetic operators
+		"Price add 2.45 eq 5.00",
+		"Price sub 0.55 eq 2.00",
+		"Price mul 2.0 eq 5.10",
+		"Price div 2.55 eq 1",
+		"Rating div 2 eq 2",
+		"Rating mod 5 eq 0",
+		// Grouping
+		"(4 add 5) mod (4 sub 1) eq 0",
+		"not (City eq 'Dallas') or Name in ('a', 'b', 'c') and not (State eq 'California')",
 		// Various parenthesis combinations
 		"City eq 'Dallas'",
 		"City eq ('Dallas')",
@@ -414,20 +436,22 @@ func TestValidFilterSyntax(t *testing.T) {
 		"not (City in ('Dallas'))",
 		"not (City in ('Dallas', 'Houston'))",
 		"not (((City eq 'Dallas')))",
-		"not (City eq 'Dallas') or Name in ('a', 'b', 'c') and not (State eq 'California')",
 	}
 	for _, input := range queries {
 		tokens, err := GlobalFilterTokenizer.Tokenize(input)
 		if err != nil {
-			t.Errorf("Error parsing query %s", input)
+			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+			return
 		}
 		output, err := GlobalFilterParser.InfixToPostfix(tokens)
 		if err != nil {
-			t.Errorf("Error parsing query %s", input)
+			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+			return
 		}
 		tree, err := GlobalFilterParser.PostfixToTree(output)
 		if err != nil {
-			t.Errorf("Error parsing query %s", input)
+			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+			return
 		} else if tree != nil {
 			//printTree(tree, 0)
 		}
@@ -713,6 +737,73 @@ func TestNestedPath(t *testing.T) {
 	}
 	if tree.Children[1].Token.Value != "'Redmond'" {
 		t.Error("First child is \"" + tree.Children[1].Token.Value + "\", not 'Redmond'")
+	}
+}
+
+func TestSubstringFunction(t *testing.T) {
+	// substring can take 2 or 3 arguments.
+	{
+		input := "substring(CompanyName,1) eq 'Foo'"
+		tokens, err := GlobalFilterTokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		output, err := GlobalFilterParser.InfixToPostfix(tokens)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		tree, err := GlobalFilterParser.PostfixToTree(output)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		var expect []expectedParseNode = []expectedParseNode{
+			{"eq", 0},
+			{"substring", 1},
+			{"CompanyName", 2},
+			{"1", 2},
+			{"'Foo'", 1},
+		}
+		pos := 0
+		err = CompareTree(tree, expect, &pos, 0)
+		if err != nil {
+			printTree(tree, 0)
+			t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+		}
+	}
+	{
+		input := "substring(CompanyName,1,2) eq 'lf'"
+		tokens, err := GlobalFilterTokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		output, err := GlobalFilterParser.InfixToPostfix(tokens)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		tree, err := GlobalFilterParser.PostfixToTree(output)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		var expect []expectedParseNode = []expectedParseNode{
+			{"eq", 0},
+			{"substring", 1},
+			{"CompanyName", 2},
+			{"1", 2},
+			{"2", 2},
+			{"'lf'", 1},
+		}
+		pos := 0
+		err = CompareTree(tree, expect, &pos, 0)
+		if err != nil {
+			printTree(tree, 0)
+			t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+		}
 	}
 }
 

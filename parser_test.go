@@ -7,8 +7,8 @@ import (
 
 func TestPEMDAS(t *testing.T) {
 	parser := EmptyParser()
-	parser.DefineFunction("sin", 1)
-	parser.DefineFunction("max", 2)
+	parser.DefineFunction("sin", []int{1})
+	parser.DefineFunction("max", []int{2})
 	parser.DefineOperator("^", 2, OpAssociationRight, 5, false)
 	parser.DefineOperator("*", 2, OpAssociationLeft, 5, false)
 	parser.DefineOperator("/", 2, OpAssociationLeft, 5, false)
@@ -61,8 +61,8 @@ func TestPEMDAS(t *testing.T) {
 
 func BenchmarkPEMDAS(b *testing.B) {
 	parser := EmptyParser()
-	parser.DefineFunction("sin", 1)
-	parser.DefineFunction("max", 2)
+	parser.DefineFunction("sin", []int{1})
+	parser.DefineFunction("max", []int{2})
 	parser.DefineOperator("^", 2, OpAssociationRight, 5, false)
 	parser.DefineOperator("*", 2, OpAssociationLeft, 5, false)
 	parser.DefineOperator("/", 2, OpAssociationLeft, 5, false)
@@ -138,16 +138,16 @@ func TestBoolean(t *testing.T) {
 
 func TestFunc(t *testing.T) {
 	parser := EmptyParser()
-	parser.DefineFunction("sin", 1)
-	parser.DefineFunction("max", 2)
-	parser.DefineFunction("volume", 3)
+	parser.DefineFunction("sin", []int{1})
+	parser.DefineFunction("max", []int{2})
+	parser.DefineFunction("volume", []int{3})
 	parser.DefineOperator("^", 2, OpAssociationRight, 5, false)
 	parser.DefineOperator("*", 2, OpAssociationLeft, 5, false)
 	parser.DefineOperator("/", 2, OpAssociationLeft, 5, false)
 	parser.DefineOperator("+", 2, OpAssociationLeft, 4, false)
 	parser.DefineOperator("-", 2, OpAssociationLeft, 4, false)
 
-	// max(sin(5*pi)+3, sin(5)+volume(3,2,4)/2)
+	// max(sin(5*pi)+3, sin(5)+volume(3,2,4)/[]int{3})
 	tokens := []*Token{
 		&Token{Value: "max"},
 		&Token{Value: "("},
@@ -205,8 +205,8 @@ func TestFunc(t *testing.T) {
 
 func TestTree(t *testing.T) {
 	parser := EmptyParser()
-	parser.DefineFunction("sin", 1)
-	parser.DefineFunction("max", 2)
+	parser.DefineFunction("sin", []int{1})
+	parser.DefineFunction("max", []int{2})
 	parser.DefineOperator("^", 2, OpAssociationRight, 5, false)
 	parser.DefineOperator("*", 2, OpAssociationLeft, 5, false)
 	parser.DefineOperator("/", 2, OpAssociationLeft, 5, false)
@@ -270,8 +270,8 @@ func TestTree(t *testing.T) {
 
 func BenchmarkBuildTree(b *testing.B) {
 	parser := EmptyParser()
-	parser.DefineFunction("sin", 1)
-	parser.DefineFunction("max", 2)
+	parser.DefineFunction("sin", []int{1})
+	parser.DefineFunction("max", []int{2})
 	parser.DefineOperator("^", 2, OpAssociationRight, 5, false)
 	parser.DefineOperator("*", 2, OpAssociationLeft, 5, false)
 	parser.DefineOperator("/", 2, OpAssociationLeft, 5, false)
