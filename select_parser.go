@@ -22,7 +22,7 @@ func ParseSelectString(sel string) (*GoDataSelectQuery, error) {
 		result = append(result, &SelectItem{segments})
 	}
 
-	return &GoDataSelectQuery{result}, nil
+	return &GoDataSelectQuery{result, sel}, nil
 }
 
 func SemanticizeSelectQuery(sel *GoDataSelectQuery, service *GoDataService, entity *GoDataEntityType) error {

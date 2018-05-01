@@ -82,6 +82,8 @@ type GoDataQuery struct {
 // is stored as a parse tree that can be traversed.
 type GoDataFilterQuery struct {
 	Tree *ParseNode
+	// The raw filter string
+	RawValue string
 }
 
 type GoDataApplyQuery string
@@ -92,10 +94,14 @@ type GoDataExpandQuery struct {
 
 type GoDataSelectQuery struct {
 	SelectItems []*SelectItem
+	// The raw select string
+	RawValue string
 }
 
 type GoDataOrderByQuery struct {
 	OrderByItems []*OrderByItem
+	// The raw orderby string
+	RawValue string
 }
 
 type GoDataTopQuery int
@@ -108,6 +114,8 @@ type GoDataInlineCountQuery string
 
 type GoDataSearchQuery struct {
 	Tree *ParseNode
+	// The raw search string
+	RawValue string
 }
 
 type GoDataFormatQuery struct {

@@ -35,7 +35,7 @@ func ParseOrderByString(orderby string) (*GoDataOrderByQuery, error) {
 		result = append(result, &OrderByItem{field, order})
 	}
 
-	return &GoDataOrderByQuery{result}, nil
+	return &GoDataOrderByQuery{result, orderby}, nil
 }
 
 func SemanticizeOrderByQuery(orderby *GoDataOrderByQuery, service *GoDataService, entity *GoDataEntityType) error {
