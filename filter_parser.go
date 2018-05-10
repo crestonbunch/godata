@@ -43,7 +43,7 @@ func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &GoDataFilterQuery{tree}, nil
+	return &GoDataFilterQuery{tree, filter}, nil
 }
 
 // Create a tokenizer capable of tokenizing filter statements
