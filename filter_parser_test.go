@@ -609,11 +609,11 @@ func TestFilterIn(t *testing.T) {
 		}
 		if tree.Children[0].Children[1].Children[0].Token.Value != "Site" {
 			t.Errorf("Unexpected operand for the 'in' operator. Expected 'Site', got %s",
-				len(tree.Children[0].Children[1].Children[0].Token.Value))
+				tree.Children[0].Children[1].Children[0].Token.Value)
 		}
 		if tree.Children[0].Children[1].Children[1].Token.Value != "(" {
 			t.Errorf("Unexpected operand for the 'in' operator. Expected '(', got %s",
-				len(tree.Children[0].Children[1].Children[1].Token.Value))
+				tree.Children[0].Children[1].Children[1].Token.Value)
 		}
 		if len(tree.Children[0].Children[1].Children[1].Children) != 4 {
 			t.Errorf("Unexpected number of operands for the 'in' operator. Expected 4, got %d",
