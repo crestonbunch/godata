@@ -65,6 +65,7 @@ type GoDataSegment struct {
 
 type GoDataQuery struct {
 	Filter      *GoDataFilterQuery
+	At          *GoDataFilterQuery
 	Apply       *GoDataApplyQuery
 	Expand      *GoDataExpandQuery
 	Select      *GoDataSelectQuery
