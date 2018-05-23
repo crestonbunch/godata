@@ -225,7 +225,7 @@ func ParseUrlQuery(query url.Values) (*GoDataQuery, error) {
 		result.Filter, err = ParseFilterString(filter)
 	}
 	if at != "" {
-		result.Filter, err = ParseFilterString(filter)
+		result.At, err = ParseFilterString(at)
 	}
 	if err != nil {
 		return nil, err
