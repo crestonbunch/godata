@@ -206,6 +206,7 @@ func SemanticizePathSegment(segment *GoDataSegment, service *GoDataService) erro
 
 func ParseUrlQuery(query url.Values) (*GoDataQuery, error) {
 	filter := query.Get("$filter")
+	at := query.Get("at")
 	apply := query.Get("$apply")
 	expand := query.Get("$expand")
 	sel := query.Get("$select")
@@ -222,6 +223,9 @@ func ParseUrlQuery(query url.Values) (*GoDataQuery, error) {
 	var err error = nil
 	if filter != "" {
 		result.Filter, err = ParseFilterString(filter)
+	}
+	if at != "" {
+		result.At, err = ParseFilterString(at)
 	}
 	if err != nil {
 		return nil, err
