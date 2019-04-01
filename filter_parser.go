@@ -22,6 +22,7 @@ const (
 	FilterTokenDateTime
 	FilterTokenBoolean
 	FilterTokenLiteral // 20
+	FilterTokenDuration
 )
 
 var GlobalFilterTokenizer = FilterTokenizer()
@@ -49,6 +50,7 @@ func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 // Create a tokenizer capable of tokenizing filter statements
 func FilterTokenizer() *Tokenizer {
 	t := Tokenizer{}
+	t.Add(`^-?P((([0-9]+Y([0-9]+M)?([0-9]+D)?|([0-9]+M)([0-9]+D)?|([0-9]+D))(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S)))?)|(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S))))`, FilterTokenDuration)
 	t.Add("^[0-9]{4,4}-[0-9]{2,2}-[0-9]{2,2}T[0-9]{2,2}:[0-9]{2,2}(:[0-9]{2,2}(.[0-9]+)?)?(Z|[+-][0-9]{2,2}:[0-9]{2,2})", FilterTokenDateTime)
 	t.Add("^-?[0-9]{4,4}-[0-9]{2,2}-[0-9]{2,2}", FilterTokenDate)
 	t.Add("^[0-9]{2,2}:[0-9]{2,2}(:[0-9]{2,2}(.[0-9]+)?)?", FilterTokenTime)
