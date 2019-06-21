@@ -304,7 +304,9 @@ func (p *Parser) PostfixToTree(queue *tokenQueue) (*ParseNode, error) {
 					}
 				}
 				// prepend children so they get added in the right order
-				node.Children = append([]*ParseNode{stack.Pop()}, node.Children...)
+				c := stack.Pop()
+				c.Parent = node
+				node.Children = append([]*ParseNode{c}, node.Children...)
 			}
 			stack.Push(node)
 		} else if _, ok := p.Operators[stack.Peek().Token.Value]; ok {
@@ -317,7 +319,9 @@ func (p *Parser) PostfixToTree(queue *tokenQueue) (*ParseNode, error) {
 					return nil, fmt.Errorf("Insufficient number of operands for operator '%s'", node.Token.Value)
 				}
 				// prepend children so they get added in the right order
-				node.Children = append([]*ParseNode{stack.Pop()}, node.Children...)
+				c := stack.Pop()
+				c.Parent = node
+				node.Children = append([]*ParseNode{c}, node.Children...)
 			}
 			stack.Push(node)
 		} else if stack.Peek().Token.Value == ")" {
@@ -332,6 +336,9 @@ func (p *Parser) PostfixToTree(queue *tokenQueue) (*ParseNode, error) {
 			}
 			// Pop the open parenthesis
 			node := stack.Pop()
+			for _, v := range children {
+				v.Parent = node
+			}
 			node.Children = children
 			stack.Push(node)
 		}
