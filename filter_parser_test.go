@@ -1023,6 +1023,28 @@ func TestLambda3(t *testing.T) {
 	}
 }
 
+func TestFilterTokenizerExists(t *testing.T) {
+
+	tokenizer := FilterTokenizer()
+	input := "exists(Name,false)"
+	expect := []*Token{
+		&Token{Value: "exists", Type: FilterTokenFunc},
+		&Token{Value: "(", Type: FilterTokenOpenParen},
+		&Token{Value: "Name", Type: FilterTokenLiteral},
+		&Token{Value: ",", Type: FilterTokenComma},
+		&Token{Value: "false", Type: FilterTokenBoolean},
+		&Token{Value: ")", Type: FilterTokenCloseParen},
+	}
+	output, err := tokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+	}
+
+	result, err := CompareTokens(expect, output)
+	if !result {
+		t.Error(err)
+	}
+}
 // CompareTree compares a tree representing a ODATA filter with the expected results.
 // The expected values are a slice of nodes in breadth-first traversal.
 func CompareTree(node *ParseNode, expect []expectedParseNode, pos *int, level int) error {
