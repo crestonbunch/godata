@@ -60,7 +60,7 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^:", FilterTokenColon)
 	t.Add("^,", FilterTokenComma)
 	t.Add("^(geo.distance|geo.intersects|geo.length)", FilterTokenFunc)
-	t.Add("^(substringof|substring|length|indexof)", FilterTokenFunc)
+	t.Add("^(substringof|substring|length|indexof|exists)", FilterTokenFunc)
 	t.Add("^(eq|ne|gt|ge|lt|le|and|or|not|has|in)", FilterTokenLogical)
 	t.Add("^(add|sub|mul|divby|div|mod)", FilterTokenOp)
 	t.Add("^(contains|endswith|startswith|tolower|toupper|"+
@@ -107,6 +107,7 @@ func FilterParser() *Parser {
 	parser.DefineFunction("contains", []int{2})
 	parser.DefineFunction("endswith", []int{2})
 	parser.DefineFunction("startswith", []int{2})
+	parser.DefineFunction("exists", []int{2})
 	parser.DefineFunction("length", []int{1})
 	parser.DefineFunction("indexof", []int{2})
 	parser.DefineFunction("substring", []int{2, 3})
