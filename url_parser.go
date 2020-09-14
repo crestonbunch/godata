@@ -223,16 +223,10 @@ var supportedOdataKeywords = map[string]bool{
 func ParseUrlQuery(query url.Values) (*GoDataQuery, error) {
 	for key, val := range query {
 		if _, ok := supportedOdataKeywords[key]; !ok {
-			keywords := make([]string, 0, len(supportedOdataKeywords))
-			for k := range supportedOdataKeywords {
-				keywords = append(keywords, k)
-			}
-			return nil, fmt.Errorf("Invalid OData query. '%s' is not a supported keyword. Supported keywords are %s",
-				key, strings.Join(keywords, ", "))
+			return nil, BadRequestError(fmt.Sprintf("Query key '%s' is not a supported keyword", key))
 		}
 		if len(val) > 1 {
-			return nil, fmt.Errorf("Invalid OData query. Each key in the query must be specified at most once, but key '%s' has %d occurences",
-				key, len(val))
+			return nil, BadRequestError(fmt.Sprintf("Query key '%s' cannot be specified more than once", key))
 		}
 	}
 	filter := query.Get("$filter")
