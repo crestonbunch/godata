@@ -207,7 +207,6 @@ func SemanticizePathSegment(segment *GoDataSegment, service *GoDataService) erro
 
 var supportedOdataKeywords = map[string]bool{
 	"$filter":      true,
-	"at":           true,
 	"$apply":       true,
 	"$expand":      true,
 	"$select":      true,
@@ -218,15 +217,19 @@ var supportedOdataKeywords = map[string]bool{
 	"$inlinecount": true,
 	"$search":      true,
 	"$format":      true,
+	"at":           true,
+	"tags":         true,
 }
 
 func ParseUrlQuery(query url.Values) (*GoDataQuery, error) {
 	for key, val := range query {
 		if _, ok := supportedOdataKeywords[key]; !ok {
-			return nil, BadRequestError(fmt.Sprintf("Query key '%s' is not a supported keyword", key))
+			return nil, BadRequestError(fmt.Sprintf("Query parameter '%s' is not supported", key)).
+				SetCause(&UnsupportedQueryParameterError{key})
 		}
 		if len(val) > 1 {
-			return nil, BadRequestError(fmt.Sprintf("Query key '%s' cannot be specified more than once", key))
+			return nil, BadRequestError(fmt.Sprintf("Query parameter '%s' cannot be specified more than once", key)).
+				SetCause(&DuplicateQueryParameterError{key})
 		}
 	}
 	filter := query.Get("$filter")
