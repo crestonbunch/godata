@@ -1,6 +1,7 @@
 package godata
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 )
@@ -204,7 +205,36 @@ func SemanticizePathSegment(segment *GoDataSegment, service *GoDataService) erro
 	return BadRequestError("Invalid segment " + segment.RawValue)
 }
 
+var supportedOdataKeywords = map[string]bool{
+	"$filter":      true,
+	"at":           true,
+	"$apply":       true,
+	"$expand":      true,
+	"$select":      true,
+	"$orderby":     true,
+	"$top":         true,
+	"$skip":        true,
+	"$count":       true,
+	"$inlinecount": true,
+	"$search":      true,
+	"$format":      true,
+}
+
 func ParseUrlQuery(query url.Values) (*GoDataQuery, error) {
+	for key, val := range query {
+		if _, ok := supportedOdataKeywords[key]; !ok {
+			keywords := make([]string, 0, len(supportedOdataKeywords))
+			for k := range supportedOdataKeywords {
+				keywords = append(keywords, k)
+			}
+			return nil, fmt.Errorf("Invalid OData query. '%s' is not a supported keyword. Supported keywords are %s",
+				key, strings.Join(keywords, ", "))
+		}
+		if len(val) > 1 {
+			return nil, fmt.Errorf("Invalid OData query. Each key in the query must be specified at most once, but key '%s' has %d occurences",
+				key, len(val))
+		}
+	}
 	filter := query.Get("$filter")
 	at := query.Get("at")
 	apply := query.Get("$apply")
