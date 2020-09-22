@@ -8,13 +8,13 @@ import (
 
 // Parse a request from the HTTP server and format it into a GoDaataRequest type
 // to be passed to a provider to produce a result.
-func ParseRequest(path string, query url.Values) (*GoDataRequest, error) {
+func ParseRequest(path string, query url.Values, lenient bool) (*GoDataRequest, error) {
 
 	firstSegment, lastSegment, err := ParseUrlPath(path)
 	if err != nil {
 		return nil, err
 	}
-	parsedQuery, err := ParseUrlQuery(query)
+	parsedQuery, err := ParseUrlQuery(query, lenient)
 	if err != nil {
 		return nil, err
 	}
@@ -221,15 +221,17 @@ var supportedOdataKeywords = map[string]bool{
 	"tags":         true,
 }
 
-func ParseUrlQuery(query url.Values) (*GoDataQuery, error) {
-	for key, val := range query {
-		if _, ok := supportedOdataKeywords[key]; !ok {
-			return nil, BadRequestError(fmt.Sprintf("Query parameter '%s' is not supported", key)).
-				SetCause(&UnsupportedQueryParameterError{key})
-		}
-		if len(val) > 1 {
-			return nil, BadRequestError(fmt.Sprintf("Query parameter '%s' cannot be specified more than once", key)).
-				SetCause(&DuplicateQueryParameterError{key})
+func ParseUrlQuery(query url.Values, lenient bool) (*GoDataQuery, error) {
+	if !lenient {
+		for key, val := range query {
+			if _, ok := supportedOdataKeywords[key]; !ok {
+				return nil, BadRequestError(fmt.Sprintf("Query parameter '%s' is not supported", key)).
+					SetCause(&UnsupportedQueryParameterError{key})
+			}
+			if len(val) > 1 {
+				return nil, BadRequestError(fmt.Sprintf("Query parameter '%s' cannot be specified more than once", key)).
+					SetCause(&DuplicateQueryParameterError{key})
+			}
 		}
 	}
 	filter := query.Get("$filter")

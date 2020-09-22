@@ -143,7 +143,7 @@ func BuildService(provider GoDataProvider, serviceUrl string) (*GoDataService, e
 // to a GoData provider, and then building a response.
 func (service *GoDataService) GoDataHTTPHandler(w http.ResponseWriter, r *http.Request) {
 
-	request, err := ParseRequest(r.URL.Path, r.URL.Query())
+	request, err := ParseRequest(r.URL.Path, r.URL.Query(), false)
 
 	if err != nil {
 		panic(err) // TODO: return proper error
