@@ -112,7 +112,7 @@ func TestSemanticizeRequest(t *testing.T) {
 		return
 	}
 
-	req, err := ParseRequest(url.Path, url.Query())
+	req, err := ParseRequest(url.Path, url.Query(), false)
 
 	if err != nil {
 		t.Error(err)
@@ -180,7 +180,7 @@ func TestSemanticizeRequestWildcard(t *testing.T) {
 		return
 	}
 
-	req, err := ParseRequest(url.Path, url.Query())
+	req, err := ParseRequest(url.Path, url.Query(), false)
 
 	if err != nil {
 		t.Error(err)
@@ -263,7 +263,7 @@ func BenchmarkTypicalParseSemanticizeRequest(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 
-		req, err := ParseRequest(url.Path, url.Query())
+		req, err := ParseRequest(url.Path, url.Query(), false)
 
 		if err != nil {
 			b.Error(err)
@@ -300,7 +300,7 @@ func BenchmarkWildcardParseSemanticizeRequest(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 
-		req, err := ParseRequest(url.Path, url.Query())
+		req, err := ParseRequest(url.Path, url.Query(), false)
 
 		if err != nil {
 			b.Error(err)
