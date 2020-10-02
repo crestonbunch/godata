@@ -14,7 +14,7 @@ func TestUrlParser(t *testing.T) {
 		return
 	}
 
-	request, err := ParseRequest(parsedUrl.Path, parsedUrl.Query())
+	request, err := ParseRequest(parsedUrl.Path, parsedUrl.Query(), false)
 
 	if err != nil {
 		t.Error(err)
