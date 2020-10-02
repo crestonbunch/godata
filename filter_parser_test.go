@@ -471,6 +471,9 @@ func TestInvalidFilterSyntax(t *testing.T) {
 		"City eq",                 // Missing operand
 		"City eq (",               // Wrong operand
 		"City eq )",               // Wrong operand
+		"City near 'Dallas'",      // Unknown operator that starts with the same letters as a known operator
+		"City equals 'Dallas'",    // Unknown operator that starts with the same letters as a known operator
+		"City isNot 'Dallas'",     // Unknown operator
 		"not [City eq 'Dallas']",  // Wrong delimiter
 		"not (City eq )",          // Missing operand
 		"not ((City eq 'Dallas'",  // Missing closing parenthesis
@@ -1045,6 +1048,7 @@ func TestFilterTokenizerExists(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 // CompareTree compares a tree representing a ODATA filter with the expected results.
 // The expected values are a slice of nodes in breadth-first traversal.
 func CompareTree(node *ParseNode, expect []expectedParseNode, pos *int, level int) error {
