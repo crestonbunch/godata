@@ -197,7 +197,7 @@ func TestSemanticizeRequestWildcard(t *testing.T) {
 	err = SemanticizeRequest(req, service)
 
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Failed to semanticize request. Error: %v", err)
 		return
 	}
 

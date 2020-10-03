@@ -47,7 +47,9 @@ func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 	return &GoDataFilterQuery{tree, filter}, nil
 }
 
-// Create a tokenizer capable of tokenizing filter statements
+// FilterTokenizer creates a tokenizer capable of tokenizing filter statements
+// 4.01 Services MUST support case-insensitive operator names.
+// See https://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part2-url-conventions.html#_Toc31360955
 func FilterTokenizer() *Tokenizer {
 	t := Tokenizer{}
 	t.Add(`^-?P((([0-9]+Y([0-9]+M)?([0-9]+D)?|([0-9]+M)([0-9]+D)?|([0-9]+D))(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S)))?)|(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S))))`, FilterTokenDuration)
@@ -61,12 +63,15 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^,", FilterTokenComma)
 	t.Add("^(geo.distance|geo.intersects|geo.length)", FilterTokenFunc)
 	t.Add("^(substringof|substring|length|indexof|exists)", FilterTokenFunc)
-	t.Add("^(eq|ne|gt|ge|lt|le|and|or|not|has|in)", FilterTokenLogical)
-	t.Add("^(add|sub|mul|divby|div|mod)", FilterTokenOp)
-	t.Add("^(contains|endswith|startswith|tolower|toupper|"+
+	// Logical operators should always be followed by a space character.
+	t.Add("(?i)^(?P<token>(eq|ne|gt|ge|lt|le|and|or|not|has|in))\\s", FilterTokenLogical)
+	// Arithmetic operators should always be followed by a space character.
+	t.Add("(?i)^(?P<token>(add|sub|mul|divby|div|mod))\\s", FilterTokenOp)
+	// Functions should always be followed by a space character or open parenthesis.
+	t.Add("(?i)^(?P<token>(contains|endswith|startswith|tolower|toupper|"+
 		"trim|concat|year|month|day|hour|minute|second|fractionalseconds|date|"+
 		"time|totaloffsetminutes|now|maxdatetime|mindatetime|totalseconds|round|"+
-		"floor|ceiling|isof|cast)", FilterTokenFunc)
+		"floor|ceiling|isof|cast))[\\s(]", FilterTokenFunc)
 	t.Add("^(any|all)", FilterTokenLambda)
 	t.Add("^null", FilterTokenNull)
 	t.Add("^\\$it", FilterTokenIt)
