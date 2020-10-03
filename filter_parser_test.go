@@ -395,9 +395,10 @@ func TestValidFilterSyntax(t *testing.T) {
 		"month(BirthDate) eq 12",
 		"day(StartTime) eq 8",
 		"hour(StartTime) eq 1",
-		"hour    (StartTime) eq 1",     // function followed by space characters
-		"hour    ( StartTime   ) eq 1", // function followed by space characters
+		"hour    (StartTime) eq 12",     // function followed by space characters
+		"hour    ( StartTime   ) eq 15", // function followed by space characters
 		"minute(StartTime) eq 0",
+		"totaloffsetminutes(StartTime) eq 0",
 		"second(StartTime) eq 0",
 		"date(StartTime) ne date(EndTime)",
 		"totaloffsetminutes(StartTime) eq 60",
@@ -423,6 +424,7 @@ func TestValidFilterSyntax(t *testing.T) {
 		"geo.distance(CurrentPosition,TargetPosition)",
 		"geo.length(DirectRoute)",
 		"geo.intersects(Position,TargetArea)",
+		"GEO.INTERSECTS(Position,TargetArea)", // functions are case insensitive in ODATA 4.0.1
 		// Logical operators
 		"Name eq 'Milk'",
 		"Name EQ 'Milk'", // operators are case insensitive in ODATA 4.0.1
@@ -435,6 +437,7 @@ func TestValidFilterSyntax(t *testing.T) {
 		"Name eq 'Milk' and Price lt 2.55",
 		"not endswith(Name,'ilk')",
 		"Name eq 'Milk' or Price lt 2.55",
+		"City eq 'Dallas' or City eq 'Houston'",
 		//"style has Sales.Pattern'Yellow'", // TODO
 		// Arithmetic operators
 		"Price add 2.45 eq 5.00",
@@ -462,6 +465,16 @@ func TestValidFilterSyntax(t *testing.T) {
 		"not (City in ('Dallas'))",
 		"not (City in ('Dallas', 'Houston'))",
 		"not (((City eq 'Dallas')))",
+		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')",
+		"Tags/ANY(var:var/Key eq 'Site' AND var/Value eq 'London')",
+		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') and not (City in ('Dallas'))",
+		"Tags/all(var:var/Key eq 'Site' and var/Value eq 'London')",
+		// A long query.
+		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') or " +
+			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'Berlin') or " +
+			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'Paris') or " +
+			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'New York City') or " +
+			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'San Francisco')",
 	}
 	for _, input := range queries {
 		tokens, err := GlobalFilterTokenizer.Tokenize(input)
@@ -487,27 +500,30 @@ func TestValidFilterSyntax(t *testing.T) {
 // The URLs below are not valid ODATA syntax, the parser should return an error.
 func TestInvalidFilterSyntax(t *testing.T) {
 	queries := []string{
-		"",                        // Nothing
-		"eq",                      // Just a single logical operator
-		"and",                     // Just a single logical operator
-		"add",                     // Just a single arithmetic operator
-		"add ",                    // Just a single arithmetic operator
-		"add 2",                   // Missing operands
-		"add 2 3",                 // Missing operands
-		"City",                    // Just a single literal
-		"City City City City",     // Sequence of literals
-		"City eq",                 // Missing operand
-		"City eq (",               // Wrong operand
-		"City eq )",               // Wrong operand
-		"City equals 'Dallas'",    // Unknown operator that starts with the same letters as a known operator
-		"City near 'Dallas'",      // Unknown operator that starts with the same letters as a known operator
-		"City isNot 'Dallas'",     // Unknown operator
-		"not [City eq 'Dallas']",  // Wrong delimiter
-		"not (City eq )",          // Missing operand
-		"not ((City eq 'Dallas'",  // Missing closing parenthesis
-		"not (City eq 'Dallas'",   // Missing closing parenthesis
-		"not (City eq 'Dallas'))", // Extraneous closing parenthesis
-		"not City eq 'Dallas')",   // Missing open parenthesis
+		"",                                     // Nothing
+		"eq",                                   // Just a single logical operator
+		"and",                                  // Just a single logical operator
+		"add",                                  // Just a single arithmetic operator
+		"add ",                                 // Just a single arithmetic operator
+		"add 2",                                // Missing operands
+		"add 2 3",                              // Missing operands
+		"City",                                 // Just a single literal
+		"City City City City",                  // Sequence of literals
+		"City eq",                              // Missing operand
+		"City eq (",                            // Wrong operand
+		"City eq )",                            // Wrong operand
+		"City equals 'Dallas'",                 // Unknown operator that starts with the same letters as a known operator
+		"City near 'Dallas'",                   // Unknown operator that starts with the same letters as a known operator
+		"City isNot 'Dallas'",                  // Unknown operator
+		"not [City eq 'Dallas']",               // Wrong delimiter
+		"not (City eq )",                       // Missing operand
+		"not ((City eq 'Dallas'",               // Missing closing parenthesis
+		"not (City eq 'Dallas'",                // Missing closing parenthesis
+		"not (City eq 'Dallas'))",              // Extraneous closing parenthesis
+		"not City eq 'Dallas')",                // Missing open parenthesis
+		"City eq 'Dallas' orCity eq 'Houston'", // missing space between or and City
+		// TODO: the query below should fail.
+		//"Tags/any(var:var/Key eq 'Site') orTags/any(var:var/Key eq 'Site')",
 		"not (City eq 'Dallas') and Name eq 'Houston')",
 		"LastName contains 'Smith'",    // Previously the godata library was not returning an error.
 		"contains",                     // Function with missing parenthesis and arguments

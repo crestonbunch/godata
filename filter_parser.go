@@ -61,18 +61,32 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^/", FilterTokenNav)
 	t.Add("^:", FilterTokenColon)
 	t.Add("^,", FilterTokenComma)
-	t.Add("^(geo.distance|geo.intersects|geo.length)", FilterTokenFunc)
-	t.Add("^(substringof|substring|length|indexof|exists)", FilterTokenFunc)
-	// Logical operators should always be followed by a space character.
+	// Per ODATA ABNF grammar, functions must be followed by a open parenthesis.
+	// This implementation is a bit more lenient and allows space character between
+	// the function name and the open parenthesis.
+	// TODO: If we remove the optional space character, the function token will be
+	// mistakenly interpreted as a literal.
+	// E.g. ABNF for 'geo.distance':
+	// distanceMethodCallExpr   = "geo.distance"   OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
+	t.Add("(?i)^(?P<token>(geo.distance|geo.intersects|geo.length))[\\s(]", FilterTokenFunc)
+	// Functions must be followed by a open parenthesis.
+	// E.g. ABNF for 'indexof':
+	// indexOfMethodCallExpr    = "indexof"    OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
+	t.Add("(?i)^(?P<token>(substringof|substring|length|indexof|exists))[\\s(]", FilterTokenFunc)
+	// Logical operators must be followed by a space character.
 	t.Add("(?i)^(?P<token>(eq|ne|gt|ge|lt|le|and|or|not|has|in))\\s", FilterTokenLogical)
-	// Arithmetic operators should always be followed by a space character.
+	// Arithmetic operators must be followed by a space character.
 	t.Add("(?i)^(?P<token>(add|sub|mul|divby|div|mod))\\s", FilterTokenOp)
-	// Functions should always be followed by a space character or open parenthesis.
+	// Functions must be followed by a open parenthesis.
+	// E.g. ABNF for 'contains':
+	// containsMethodCallExpr   = "contains"   OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
 	t.Add("(?i)^(?P<token>(contains|endswith|startswith|tolower|toupper|"+
 		"trim|concat|year|month|day|hour|minute|second|fractionalseconds|date|"+
 		"time|totaloffsetminutes|now|maxdatetime|mindatetime|totalseconds|round|"+
 		"floor|ceiling|isof|cast))[\\s(]", FilterTokenFunc)
-	t.Add("^(any|all)", FilterTokenLambda)
+	// anyExpr = "any" OPEN BWS [ lambdaVariableExpr BWS COLON BWS lambdaPredicateExpr ] BWS CLOSE
+	// allExpr = "all" OPEN BWS   lambdaVariableExpr BWS COLON BWS lambdaPredicateExpr   BWS CLOSE
+	t.Add("(?i)^(?P<token>(any|all))[\\s(]", FilterTokenLambda)
 	t.Add("^null", FilterTokenNull)
 	t.Add("^\\$it", FilterTokenIt)
 	t.Add("^\\$root", FilterTokenRoot)

@@ -55,7 +55,6 @@ func (t *Tokenizer) Ignore(pattern string, token int) {
 func (t *Tokenizer) TokenizeBytes(target []byte) ([]*Token, error) {
 	result := make([]*Token, 0)
 	match := true // false when no match is found
-
 	for len(target) > 0 && match {
 		match = false
 		ignore := false
