@@ -394,6 +394,8 @@ func TestValidFilterSyntax(t *testing.T) {
 		"month(BirthDate) eq 12",
 		"day(StartTime) eq 8",
 		"hour(StartTime) eq 1",
+		"hour    (StartTime) eq 1",     // function followed by space characters
+		"hour    ( StartTime   ) eq 1", // function followed by space characters
 		"minute(StartTime) eq 0",
 		"second(StartTime) eq 0",
 		"date(StartTime) ne date(EndTime)",
@@ -484,7 +486,14 @@ func TestValidFilterSyntax(t *testing.T) {
 // The URLs below are not valid ODATA syntax, the parser should return an error.
 func TestInvalidFilterSyntax(t *testing.T) {
 	queries := []string{
-		//"City",                    // Just a single literal
+		"",                        // Nothing
+		"eq",                      // Just a single logical operator
+		"and",                     // Just a single logical operator
+		"add",                     // Just a single arithmetic operator
+		"add ",                    // Just a single arithmetic operator
+		"add 2",                   // Missing operands
+		"add 2 3",                 // Missing operands
+		"City",                    // Just a single literal
 		"City City City City",     // Sequence of literals
 		"City eq",                 // Missing operand
 		"City eq (",               // Wrong operand
@@ -729,6 +738,10 @@ func TestFilterParserTree(t *testing.T) {
 }
 
 func printTree(n *ParseNode, level int) {
+	if n == nil || n.Token == nil {
+		fmt.Printf("\n")
+		return
+	}
 	indent := ""
 	for i := 0; i < level; i++ {
 		indent += "  "
