@@ -81,6 +81,15 @@ func (t *Tokenizer) TokenizeBytes(target []byte) ([]*Token, error) {
 			match = true
 			var parsed Token
 			var token []byte
+			// If the regex includes a named group and the name of that group is "token"
+			// then the value of the token is set to the subgroup. Other characters are
+			// not consumed by the tokenization process.
+			// For example, the regex:
+			//    ^(?P<token>(eq|ne|gt|ge|lt|le|and|or|not|has|in))\\s
+			// has a group named 'token' and the group is followed by a mandatory space character.
+			// If the input data is `Name eq 'Bob'`, the token is correctly set to 'eq' and
+			// the space after eq is not consumed, because the space character itself is supposed
+			// to be the next token.
 			if idx := m.Re.SubexpIndex("token"); idx > 0 {
 				token = tokens[idx]
 			} else {

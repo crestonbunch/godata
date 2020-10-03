@@ -22,10 +22,11 @@ func TestFilterDateTime(t *testing.T) {
 	for tokenValue, tokenType := range tokens {
 		// Previously, the unit test had no space character after 'gt'
 		// E.g. 'CreateTime gt2011-08-29T21:58Z' was considered valid.
-		// However the ABNF notation for logical operators is:
-		// gtExpr = RWS "gt" RWS commonExpr
-		// RWS = 1*( SP / HTAB / "%20" / "%09" )  ; "required" whitespace
-		// http://docs.oasis-open.org/odata/odata/v4.01/csprd03/abnf/odata-abnf-construction-rules.txt
+		// However the ABNF notation for ODATA logical operators is:
+		//   gtExpr = RWS "gt" RWS commonExpr
+		//   RWS = 1*( SP / HTAB / "%20" / "%09" )  ; "required" whitespace
+		//
+		// See http://docs.oasis-open.org/odata/odata/v4.01/csprd03/abnf/odata-abnf-construction-rules.txt
 		input := "CreateTime gt " + tokenValue
 		expect := []*Token{
 			&Token{Value: "CreateTime", Type: FilterTokenLiteral},
