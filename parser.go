@@ -98,6 +98,7 @@ func (t *Tokenizer) TokenizeBytes(target []byte) ([]*Token, error) {
 			target = target[len(token):] // remove the token from the input
 			if !ignore {
 				if m.CaseInsentitive {
+					// In ODATA 4.0.1, operators and functions are case insensitive.
 					parsed = Token{Value: strings.ToLower(string(token)), Type: m.Token}
 				} else {
 					parsed = Token{Value: string(token), Type: m.Token}
