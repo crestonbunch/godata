@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 const (
@@ -24,9 +25,10 @@ type Tokenizer struct {
 }
 
 type TokenMatcher struct {
-	Pattern string         // The regular expression matching a ODATA query token, such as literal value, operator or function
-	Re      *regexp.Regexp // The compiled regex
-	Token   int
+	Pattern         string         // The regular expression matching a ODATA query token, such as literal value, operator or function
+	Re              *regexp.Regexp // The compiled regex
+	Token           int            // The token identifier
+	CaseInsentitive bool           // Regex is case-insensitive
 }
 
 type Token struct {
@@ -40,13 +42,13 @@ type Token struct {
 
 func (t *Tokenizer) Add(pattern string, token int) {
 	rxp := regexp.MustCompile(pattern)
-	matcher := &TokenMatcher{pattern, rxp, token}
+	matcher := &TokenMatcher{pattern, rxp, token, strings.Contains(pattern, "(?i)")}
 	t.TokenMatchers = append(t.TokenMatchers, matcher)
 }
 
 func (t *Tokenizer) Ignore(pattern string, token int) {
 	rxp := regexp.MustCompile(pattern)
-	matcher := &TokenMatcher{pattern, rxp, token}
+	matcher := &TokenMatcher{pattern, rxp, token, strings.Contains(pattern, "(?i)")}
 	t.IgnoreMatchers = append(t.IgnoreMatchers, matcher)
 }
 
@@ -55,22 +57,52 @@ func (t *Tokenizer) TokenizeBytes(target []byte) ([]*Token, error) {
 	match := true // false when no match is found
 	for len(target) > 0 && match {
 		match = false
-		for _, m := range t.TokenMatchers {
-			token := m.Re.Find(target)
-			if len(token) > 0 {
-				parsed := Token{Value: string(token), Type: m.Token}
-				result = append(result, &parsed)
-				target = target[len(token):] // remove the token from the input
+		ignore := false
+		var tokens [][]byte
+		var m *TokenMatcher
+		for _, m = range t.TokenMatchers {
+			tokens = m.Re.FindSubmatch(target)
+			if len(tokens) > 0 {
 				match = true
 				break
 			}
 		}
-		for _, m := range t.IgnoreMatchers {
-			token := m.Re.Find(target)
-			if len(token) > 0 {
-				match = true
-				target = target[len(token):] // remove the token from the input
-				break
+		if len(tokens) == 0 {
+			for _, m = range t.IgnoreMatchers {
+				tokens = m.Re.FindSubmatch(target)
+				if len(tokens) > 0 {
+					ignore = true
+					break
+				}
+			}
+		}
+		if len(tokens) > 0 {
+			match = true
+			var parsed Token
+			var token []byte
+			// If the regex includes a named group and the name of that group is "token"
+			// then the value of the token is set to the subgroup. Other characters are
+			// not consumed by the tokenization process.
+			// For example, the regex:
+			//    ^(?P<token>(eq|ne|gt|ge|lt|le|and|or|not|has|in))\\s
+			// has a group named 'token' and the group is followed by a mandatory space character.
+			// If the input data is `Name eq 'Bob'`, the token is correctly set to 'eq' and
+			// the space after eq is not consumed, because the space character itself is supposed
+			// to be the next token.
+			if idx := m.Re.SubexpIndex("token"); idx > 0 {
+				token = tokens[idx]
+			} else {
+				token = tokens[0]
+			}
+			target = target[len(token):] // remove the token from the input
+			if !ignore {
+				if m.CaseInsentitive {
+					// In ODATA 4.0.1, operators and functions are case insensitive.
+					parsed = Token{Value: strings.ToLower(string(token)), Type: m.Token}
+				} else {
+					parsed = Token{Value: string(token), Type: m.Token}
+				}
+				result = append(result, &parsed)
 			}
 		}
 	}
@@ -78,7 +110,9 @@ func (t *Tokenizer) TokenizeBytes(target []byte) ([]*Token, error) {
 	if len(target) > 0 && !match {
 		return result, BadRequestError("No matching token for " + string(target))
 	}
-
+	if len(result) <= 1 {
+		return result, BadRequestError("Missing parameter for " + string(target))
+	}
 	return result, nil
 }
 
@@ -151,13 +185,38 @@ func (p *Parser) isGroupingOperator(stack *tokenStack, token *Token) bool {
 	return false
 }
 
-// Parse the input string of tokens using the given definitions of operators
+// IsLiteral returns true if the specified token is considered a literal for this parser.
+func (p *Parser) IsLiteral(token *Token) bool {
+	if token.Value == "," || token.Value == "(" || token.Value == ")" {
+		return false
+	}
+	if _, ok := p.Functions[token.Value]; ok {
+		return false
+	}
+	if _, ok := p.Operators[token.Value]; ok {
+		return false
+	}
+	return true
+}
+
+// InfixToPostfix parses the input string of tokens using the given definitions of operators
 // and functions. (Everything else is assumed to be a literal.) Uses the
 // Shunting-Yard algorithm.
 func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 	queue := tokenQueue{} // output queue in postfix
 	stack := tokenStack{} // Operator stack
 
+	prevIsLiteral := false
+	for i := range tokens {
+		isLiteral := p.IsLiteral(tokens[i])
+		if isLiteral && prevIsLiteral {
+			// Cannot have two consecutive literal values.
+			return nil, BadRequestError(
+				fmt.Sprintf("Request cannot include two consecutive literal values '%v' and '%v'",
+					tokens[i-1].Value, tokens[i].Value))
+		}
+		prevIsLiteral = isLiteral
+	}
 	for len(tokens) > 0 {
 		token := tokens[0]
 		tokens = tokens[1:]
@@ -400,6 +459,7 @@ type tokenQueueNode struct {
 	Next  *tokenQueueNode
 }
 
+// Enqueue adds the specified token at the tail of the queue.
 func (q *tokenQueue) Enqueue(t *Token) {
 	node := tokenQueueNode{t, q.Tail, nil}
 	//fmt.Println(t.Value)

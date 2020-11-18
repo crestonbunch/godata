@@ -2,6 +2,7 @@ package godata
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -19,7 +20,14 @@ func TestFilterDateTime(t *testing.T) {
 		"21:58:33":                      FilterTokenTime,
 	}
 	for tokenValue, tokenType := range tokens {
-		input := "CreateTime gt" + tokenValue
+		// Previously, the unit test had no space character after 'gt'
+		// E.g. 'CreateTime gt2011-08-29T21:58Z' was considered valid.
+		// However the ABNF notation for ODATA logical operators is:
+		//   gtExpr = RWS "gt" RWS commonExpr
+		//   RWS = 1*( SP / HTAB / "%20" / "%09" )  ; "required" whitespace
+		//
+		// See http://docs.oasis-open.org/odata/odata/v4.01/csprd03/abnf/odata-abnf-construction-rules.txt
+		input := "CreateTime gt " + tokenValue
 		expect := []*Token{
 			&Token{Value: "CreateTime", Type: FilterTokenLiteral},
 			&Token{Value: "gt", Type: FilterTokenLogical},
@@ -27,12 +35,17 @@ func TestFilterDateTime(t *testing.T) {
 		}
 		output, err := tokenizer.Tokenize(input)
 		if err != nil {
-			t.Error(err)
+			t.Errorf("Failed to tokenize input %s. Error: %v", input, err)
 		}
 
 		result, err := CompareTokens(expect, output)
 		if !result {
-			t.Error(err)
+			var a []string
+			for _, t := range output {
+				a = append(a, t.Value)
+			}
+
+			t.Errorf("Unexpected tokens for input '%s'. Tokens: %s Error: %v", input, strings.Join(a, ", "), err)
 		}
 	}
 }
@@ -382,7 +395,10 @@ func TestValidFilterSyntax(t *testing.T) {
 		"month(BirthDate) eq 12",
 		"day(StartTime) eq 8",
 		"hour(StartTime) eq 1",
+		"hour    (StartTime) eq 12",     // function followed by space characters
+		"hour    ( StartTime   ) eq 15", // function followed by space characters
 		"minute(StartTime) eq 0",
+		"totaloffsetminutes(StartTime) eq 0",
 		"second(StartTime) eq 0",
 		"date(StartTime) ne date(EndTime)",
 		"totaloffsetminutes(StartTime) eq 60",
@@ -408,9 +424,12 @@ func TestValidFilterSyntax(t *testing.T) {
 		"geo.distance(CurrentPosition,TargetPosition)",
 		"geo.length(DirectRoute)",
 		"geo.intersects(Position,TargetArea)",
+		"GEO.INTERSECTS(Position,TargetArea)", // functions are case insensitive in ODATA 4.0.1
 		// Logical operators
 		"Name eq 'Milk'",
+		"Name EQ 'Milk'", // operators are case insensitive in ODATA 4.0.1
 		"Name ne 'Milk'",
+		"Name NE 'Milk'",
 		"Name gt 'Milk'",
 		"Name ge 'Milk'",
 		"Name lt 'Milk'",
@@ -418,10 +437,13 @@ func TestValidFilterSyntax(t *testing.T) {
 		"Name eq 'Milk' and Price lt 2.55",
 		"not endswith(Name,'ilk')",
 		"Name eq 'Milk' or Price lt 2.55",
+		"City eq 'Dallas' or City eq 'Houston'",
 		//"style has Sales.Pattern'Yellow'", // TODO
 		// Arithmetic operators
 		"Price add 2.45 eq 5.00",
+		"Price ADD 2.45 eq 5.00", // 4.01 Services MUST support case-insensitive operator names.
 		"Price sub 0.55 eq 2.00",
+		"Price SUB 0.55 EQ 2.00", // 4.01 Services MUST support case-insensitive operator names.
 		"Price mul 2.0 eq 5.10",
 		"Price div 2.55 eq 1",
 		"Rating div 2 eq 2",
@@ -443,6 +465,16 @@ func TestValidFilterSyntax(t *testing.T) {
 		"not (City in ('Dallas'))",
 		"not (City in ('Dallas', 'Houston'))",
 		"not (((City eq 'Dallas')))",
+		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')",
+		"Tags/ANY(var:var/Key eq 'Site' AND var/Value eq 'London')",
+		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') and not (City in ('Dallas'))",
+		"Tags/all(var:var/Key eq 'Site' and var/Value eq 'London')",
+		// A long query.
+		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') or " +
+			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'Berlin') or " +
+			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'Paris') or " +
+			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'New York City') or " +
+			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'San Francisco')",
 	}
 	for _, input := range queries {
 		tokens, err := GlobalFilterTokenizer.Tokenize(input)
@@ -468,15 +500,30 @@ func TestValidFilterSyntax(t *testing.T) {
 // The URLs below are not valid ODATA syntax, the parser should return an error.
 func TestInvalidFilterSyntax(t *testing.T) {
 	queries := []string{
-		"City eq",                 // Missing operand
-		"City eq (",               // Wrong operand
-		"City eq )",               // Wrong operand
-		"not [City eq 'Dallas']",  // Wrong delimiter
-		"not (City eq )",          // Missing operand
-		"not ((City eq 'Dallas'",  // Missing closing parenthesis
-		"not (City eq 'Dallas'",   // Missing closing parenthesis
-		"not (City eq 'Dallas'))", // Extraneous closing parenthesis
-		"not City eq 'Dallas')",   // Missing open parenthesis
+		"",                                     // Nothing
+		"eq",                                   // Just a single logical operator
+		"and",                                  // Just a single logical operator
+		"add",                                  // Just a single arithmetic operator
+		"add ",                                 // Just a single arithmetic operator
+		"add 2",                                // Missing operands
+		"add 2 3",                              // Missing operands
+		"City",                                 // Just a single literal
+		"City City City City",                  // Sequence of literals
+		"City eq",                              // Missing operand
+		"City eq (",                            // Wrong operand
+		"City eq )",                            // Wrong operand
+		"City equals 'Dallas'",                 // Unknown operator that starts with the same letters as a known operator
+		"City near 'Dallas'",                   // Unknown operator that starts with the same letters as a known operator
+		"City isNot 'Dallas'",                  // Unknown operator
+		"not [City eq 'Dallas']",               // Wrong delimiter
+		"not (City eq )",                       // Missing operand
+		"not ((City eq 'Dallas'",               // Missing closing parenthesis
+		"not (City eq 'Dallas'",                // Missing closing parenthesis
+		"not (City eq 'Dallas'))",              // Extraneous closing parenthesis
+		"not City eq 'Dallas')",                // Missing open parenthesis
+		"City eq 'Dallas' orCity eq 'Houston'", // missing space between or and City
+		// TODO: the query below should fail.
+		//"Tags/any(var:var/Key eq 'Site') orTags/any(var:var/Key eq 'Site')",
 		"not (City eq 'Dallas') and Name eq 'Houston')",
 		"LastName contains 'Smith'",    // Previously the godata library was not returning an error.
 		"contains",                     // Function with missing parenthesis and arguments
@@ -486,7 +533,7 @@ func TestInvalidFilterSyntax(t *testing.T) {
 		"contains(LastName, 'Smith'))", // Extraneous closing parenthesis
 		"contains(LastName, 'Smith'",   // Missing closing parenthesis
 		"contains LastName, 'Smith')",  // Missing open parenthesis
-		//"City eq 'Dallas' 'Houston'",   // extraneous string value
+		"City eq 'Dallas' 'Houston'",   // extraneous string value
 		//"contains(Name, 'a', 'b', 'c', 'd')", // Too many function arguments
 	}
 	for _, input := range queries {
@@ -708,6 +755,10 @@ func TestFilterParserTree(t *testing.T) {
 }
 
 func printTree(n *ParseNode, level int) {
+	if n == nil || n.Token == nil {
+		fmt.Printf("\n")
+		return
+	}
 	indent := ""
 	for i := 0; i < level; i++ {
 		indent += "  "
@@ -1045,6 +1096,7 @@ func TestFilterTokenizerExists(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 // CompareTree compares a tree representing a ODATA filter with the expected results.
 // The expected values are a slice of nodes in breadth-first traversal.
 func CompareTree(node *ParseNode, expect []expectedParseNode, pos *int, level int) error {

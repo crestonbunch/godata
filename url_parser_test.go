@@ -109,6 +109,55 @@ func TestUrlParserStrictValidation(t *testing.T) {
 		return
 	}
 
+	testUrl = "Employees(1)/Sales.Manager?$filter=Name in ('Bob','Alice')&$select=Name,Address%3B$expand=Address($select=City)"
+	parsedUrl, err = url.Parse(testUrl)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	_, err = ParseRequest(parsedUrl.Path, parsedUrl.Query(), false /*strict*/)
+	if err != nil {
+		t.Errorf("Unexpected parsing error: %v", err)
+		return
+	}
+
+	// A $select option cannot be wrapped with parenthesis. This is not legal ODATA.
+
+	/*
+		 queryOptions = queryOption *( "&" queryOption )
+		 queryOption  = systemQueryOption
+				/ aliasAndValue
+				/ nameAndValue
+				/ customQueryOption
+		 systemQueryOption = compute
+				/ deltatoken
+				/ expand
+				/ filter
+				/ format
+				/ id
+				/ inlinecount
+				/ orderby
+				/ schemaversion
+				/ search
+				/ select
+				/ skip
+				/ skiptoken
+				/ top
+				/ index
+		  select = ( "$select" / "select" ) EQ selectItem *( COMMA selectItem )
+	*/
+	testUrl = "Employees(1)/Sales.Manager?$filter=Name in ('Bob','Alice')&($select=Name,Address%3B$expand=Address($select=City))"
+	parsedUrl, err = url.Parse(testUrl)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	_, err = ParseRequest(parsedUrl.Path, parsedUrl.Query(), false /*strict*/)
+	if err == nil {
+		t.Errorf("Parser should have raised error")
+		return
+	}
+
 	// Duplicate keywords
 	testUrl = "Employees(1)/Sales.Manager?$select=3DFirstName&$select=3DFirstName"
 	parsedUrl, err = url.Parse(testUrl)

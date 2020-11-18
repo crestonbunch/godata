@@ -47,7 +47,9 @@ func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 	return &GoDataFilterQuery{tree, filter}, nil
 }
 
-// Create a tokenizer capable of tokenizing filter statements
+// FilterTokenizer creates a tokenizer capable of tokenizing filter statements
+// 4.01 Services MUST support case-insensitive operator names.
+// See https://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part2-url-conventions.html#_Toc31360955
 func FilterTokenizer() *Tokenizer {
 	t := Tokenizer{}
 	t.Add(`^-?P((([0-9]+Y([0-9]+M)?([0-9]+D)?|([0-9]+M)([0-9]+D)?|([0-9]+D))(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S)))?)|(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S))))`, FilterTokenDuration)
@@ -59,15 +61,32 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^/", FilterTokenNav)
 	t.Add("^:", FilterTokenColon)
 	t.Add("^,", FilterTokenComma)
-	t.Add("^(geo.distance|geo.intersects|geo.length)", FilterTokenFunc)
-	t.Add("^(substringof|substring|length|indexof|exists)", FilterTokenFunc)
-	t.Add("^(eq|ne|gt|ge|lt|le|and|or|not|has|in)", FilterTokenLogical)
-	t.Add("^(add|sub|mul|divby|div|mod)", FilterTokenOp)
-	t.Add("^(contains|endswith|startswith|tolower|toupper|"+
+	// Per ODATA ABNF grammar, functions must be followed by a open parenthesis.
+	// This implementation is a bit more lenient and allows space character between
+	// the function name and the open parenthesis.
+	// TODO: If we remove the optional space character, the function token will be
+	// mistakenly interpreted as a literal.
+	// E.g. ABNF for 'geo.distance':
+	// distanceMethodCallExpr   = "geo.distance"   OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
+	t.Add("(?i)^(?P<token>(geo.distance|geo.intersects|geo.length))[\\s(]", FilterTokenFunc)
+	// Functions must be followed by a open parenthesis.
+	// E.g. ABNF for 'indexof':
+	// indexOfMethodCallExpr    = "indexof"    OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
+	t.Add("(?i)^(?P<token>(substringof|substring|length|indexof|exists))[\\s(]", FilterTokenFunc)
+	// Logical operators must be followed by a space character.
+	t.Add("(?i)^(?P<token>(eq|ne|gt|ge|lt|le|and|or|not|has|in))\\s", FilterTokenLogical)
+	// Arithmetic operators must be followed by a space character.
+	t.Add("(?i)^(?P<token>(add|sub|mul|divby|div|mod))\\s", FilterTokenOp)
+	// Functions must be followed by a open parenthesis.
+	// E.g. ABNF for 'contains':
+	// containsMethodCallExpr   = "contains"   OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
+	t.Add("(?i)^(?P<token>(contains|endswith|startswith|tolower|toupper|"+
 		"trim|concat|year|month|day|hour|minute|second|fractionalseconds|date|"+
 		"time|totaloffsetminutes|now|maxdatetime|mindatetime|totalseconds|round|"+
-		"floor|ceiling|isof|cast)", FilterTokenFunc)
-	t.Add("^(any|all)", FilterTokenLambda)
+		"floor|ceiling|isof|cast))[\\s(]", FilterTokenFunc)
+	// anyExpr = "any" OPEN BWS [ lambdaVariableExpr BWS COLON BWS lambdaPredicateExpr ] BWS CLOSE
+	// allExpr = "all" OPEN BWS   lambdaVariableExpr BWS COLON BWS lambdaPredicateExpr   BWS CLOSE
+	t.Add("(?i)^(?P<token>(any|all))[\\s(]", FilterTokenLambda)
 	t.Add("^null", FilterTokenNull)
 	t.Add("^\\$it", FilterTokenIt)
 	t.Add("^\\$root", FilterTokenRoot)
