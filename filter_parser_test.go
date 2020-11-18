@@ -383,8 +383,10 @@ func TestValidFilterSyntax(t *testing.T) {
 		"startswith(CompanyName,'Alfr')",
 		"length(CompanyName) eq 19",
 		"indexof(CompanyName,'lfreds') eq 1",
-		"substring(CompanyName,1) eq 'lfreds Futterkiste'",
-		"substring(CompanyName,1,2) eq 'lf'", // substring with 3 arguments.
+		"substring(CompanyName,1) eq 'lfreds Futterkiste'", // substring() with 2 arguments.
+		"'lfreds Futterkiste' eq substring(CompanyName,1)", // Same as above, but order of operands is reversed.
+		"substring(CompanyName,1,2) eq 'lf'",               // substring() with 3 arguments.
+		"'lf' eq substring(CompanyName,1,2) ",              // Same as above, but order of operands is reversed.
 		"substringof('Alfreds', CompanyName) eq true",
 		"tolower(CompanyName) eq 'alfreds futterkiste'",
 		"toupper(CompanyName) eq 'ALFREDS FUTTERKISTE'",
@@ -426,6 +428,8 @@ func TestValidFilterSyntax(t *testing.T) {
 		"geo.intersects(Position,TargetArea)",
 		"GEO.INTERSECTS(Position,TargetArea)", // functions are case insensitive in ODATA 4.0.1
 		// Logical operators
+		"'Milk' eq 'Milk'",  // Compare two literals
+		"'Water' ne 'Milk'", // Compare two literals
 		"Name eq 'Milk'",
 		"Name EQ 'Milk'", // operators are case insensitive in ODATA 4.0.1
 		"Name ne 'Milk'",
@@ -434,6 +438,7 @@ func TestValidFilterSyntax(t *testing.T) {
 		"Name ge 'Milk'",
 		"Name lt 'Milk'",
 		"Name le 'Milk'",
+		"Name eq Name", // parameter equals to itself
 		"Name eq 'Milk' and Price lt 2.55",
 		"not endswith(Name,'ilk')",
 		"Name eq 'Milk' or Price lt 2.55",
@@ -490,12 +495,13 @@ func TestValidFilterSyntax(t *testing.T) {
 			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
 			return
 		}
+		fmt.Printf("Postfix queue: %v\n", output.String())
 		tree, err := GlobalFilterParser.PostfixToTree(output)
 		if err != nil {
 			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
 			return
 		} else if tree != nil {
-			//printTree(tree, 0)
+			printTree(tree, 0)
 		}
 	}
 }

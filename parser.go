@@ -165,7 +165,8 @@ func (p *Parser) DefineOperator(token string, operands, assoc, precedence int, m
 	p.Operators[token] = &Operator{token, assoc, operands, precedence, multiValueOperand}
 }
 
-// Add a function to the language
+// DefineFunction adds a function to the language
+// params is the number of parameters this function accepts
 func (p *Parser) DefineFunction(token string, params []int) {
 	sort.Sort(sort.Reverse(sort.IntSlice(params)))
 	p.Functions[token] = &Function{token, params}
@@ -257,6 +258,7 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 			//   These precedence tokens are removed while parsing the OData query.
 			// - As a grouping operator for multi-value sets, such as "City in ('San Jose', 'Chicago', 'Dallas')"
 			//   The grouping tokens are retained while parsing the OData query.
+			// - To specify function parameters
 			if p.isGroupingOperator(&stack, token) {
 				// The '(' token is used as a grouping operator.
 				queue.Enqueue(token)
@@ -490,13 +492,13 @@ func (q *tokenQueue) Empty() bool {
 }
 
 func (q *tokenQueue) String() string {
-	result := ""
+	var sb strings.Builder
 	node := q.Head
 	for node != nil {
-		result += node.Token.Value
+		sb.WriteString(fmt.Sprintf("[%s]", node.Token.Value))
 		node = node.Next
 	}
-	return result
+	return sb.String()
 }
 
 type nodeStack struct {
