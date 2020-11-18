@@ -465,7 +465,10 @@ func TestValidFilterSyntax(t *testing.T) {
 		"not (City in ('Dallas'))",
 		"not (City in ('Dallas', 'Houston'))",
 		"not (((City eq 'Dallas')))",
-		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')",
+		"Tags/any()",                                                // The any operator without an argument returns true if the collection is not empty
+		"Tags/any(tag:tag eq 'London')",                             // 'Tags' is array of strings
+		"Tags/any(tag:tag eq 'London' or tag eq 'Berlin')",          // 'Tags' is array of strings
+		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')", // 'Tags' is array of {"Key": "abc", "Value": "def"}
 		"Tags/ANY(var:var/Key eq 'Site' AND var/Value eq 'London')",
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') and not (City in ('Dallas'))",
 		"Tags/all(var:var/Key eq 'Site' and var/Value eq 'London')",
