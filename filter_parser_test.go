@@ -127,6 +127,48 @@ func TestFilterDivby(t *testing.T) {
 	}
 }
 
+func TestFilterNotWithNoSpace(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	// Note: according to ODATA ABNF notation, there must be a space between not and open parenthesis.
+	// http://docs.oasis-open.org/odata/odata/v4.01/csprd03/abnf/odata-abnf-construction-rules.txt
+	input := "not(City eq 'Seattle')"
+	{
+		expect := []*Token{
+			&Token{Value: "not", Type: FilterTokenLogical},
+			&Token{Value: "(", Type: FilterTokenOpenParen},
+			&Token{Value: "City", Type: FilterTokenLiteral},
+			&Token{Value: "eq", Type: FilterTokenLogical},
+			&Token{Value: "'Seattle'", Type: FilterTokenString},
+			&Token{Value: ")", Type: FilterTokenCloseParen},
+		}
+		output, err := tokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+		}
+		result, err := CompareTokens(expect, output)
+		if !result {
+			t.Error(err)
+		}
+	}
+
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"not", 0},
+		{"eq", 1},
+		{"City", 2},
+		{"'Seattle'", 2},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
 func TestFilterNot(t *testing.T) {
 	tokenizer := FilterTokenizer()
 	input := "not ( City in ( 'Seattle', 'Atlanta' ) )"
@@ -180,7 +222,7 @@ func TestFilterNot(t *testing.T) {
 		pos := 0
 		err = CompareTree(tree, expect, &pos, 0)
 		if err != nil {
-			printTree(tree, 0)
+			printTree(tree)
 			t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 		}
 
@@ -484,6 +526,7 @@ func TestValidFilterSyntax(t *testing.T) {
 		"not (City in ('Dallas'))",
 		"not (City in ('Dallas', 'Houston'))",
 		"not (((City eq 'Dallas')))",
+		"not(S1 eq 'foo')",
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')",
 		"Tags/ANY(var:var/Key eq 'Site' AND var/Value eq 'London')",
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') and not (City in ('Dallas'))",
@@ -500,8 +543,15 @@ func TestValidFilterSyntax(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
 			return
-		} else if q.Tree != nil {
-			//printTree(q.Tree, 0)
+		} else if q.Tree == nil {
+			t.Errorf("Error parsing query %s. Tree is nil", input)
+			//printTree(q.Tree)
+		}
+		if q.Tree.Token == nil {
+			t.Errorf("Error parsing query %s. Root token is nil", input)
+		}
+		if q.Tree.Token.Type == FilterTokenLiteral {
+			t.Errorf("Error parsing query %s. Unexpected root token type: %+v", input, q.Tree.Token)
 		}
 	}
 }
@@ -562,7 +612,7 @@ func TestInvalidFilterSyntax(t *testing.T) {
 		q, err := ParseFilterString(input)
 		if err == nil {
 			// The parser has incorrectly determined the syntax is valid.
-			printTree(q.Tree, 0)
+			printTree(q.Tree)
 		}
 		if err == nil {
 			t.Errorf("The query '$filter=%s' is not valid ODATA syntax. The ODATA parser should return an error", input)
@@ -768,19 +818,8 @@ func TestFilterParserTree(t *testing.T) {
 
 }
 
-func printTree(n *ParseNode, level int) {
-	if n == nil || n.Token == nil {
-		fmt.Printf("\n")
-		return
-	}
-	indent := ""
-	for i := 0; i < level; i++ {
-		indent += "  "
-	}
-	fmt.Printf("%s %-10s %-10d\n", indent, n.Token.Value, n.Token.Type)
-	for _, v := range n.Children {
-		printTree(v, level+1)
-	}
+func printTree(n *ParseNode) {
+	fmt.Printf("Tree:\n%s\n", n.String())
 }
 
 func TestNestedPath(t *testing.T) {
@@ -841,7 +880,7 @@ func TestSubstringFunction(t *testing.T) {
 		pos := 0
 		err = CompareTree(tree, expect, &pos, 0)
 		if err != nil {
-			printTree(tree, 0)
+			printTree(tree)
 			t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 		}
 	}
@@ -873,7 +912,7 @@ func TestSubstringFunction(t *testing.T) {
 		pos := 0
 		err = CompareTree(tree, expect, &pos, 0)
 		if err != nil {
-			printTree(tree, 0)
+			printTree(tree)
 			t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 		}
 	}
@@ -907,7 +946,7 @@ func TestSubstringofFunction(t *testing.T) {
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
 	if err != nil {
-		printTree(tree, 0)
+		printTree(tree)
 		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
@@ -938,7 +977,7 @@ func TestGeoFunctions(t *testing.T) {
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
 	if err != nil {
-		printTree(tree, 0)
+		printTree(tree)
 		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
@@ -982,7 +1021,7 @@ func TestLambda1(t *testing.T) {
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
 	if err != nil {
-		printTree(tree, 0)
+		printTree(tree)
 		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
@@ -1029,7 +1068,7 @@ func TestLambda2(t *testing.T) {
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
 	if err != nil {
-		printTree(tree, 0)
+		printTree(tree)
 		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
@@ -1083,7 +1122,7 @@ func TestLambda3(t *testing.T) {
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
 	if err != nil {
-		printTree(tree, 0)
+		printTree(tree)
 		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
