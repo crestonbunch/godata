@@ -400,7 +400,13 @@ func TestValidFilterSyntax(t *testing.T) {
 		"toupper(CompanyName) eq 'ALFREDS FUTTERKISTE'",
 		"trim(CompanyName) eq 'Alfreds Futterkiste'",
 		"concat(concat(City,', '), Country) eq 'Berlin, Germany'",
+		// GUID
+		// "GuidValue eq 01234567-89ab-cdef-0123-456789abcdef", // TODO According to ODATA ABNF notation, GUID values do not have quotes.
 		// Date and Time functions
+		"StartDate eq 2012-12-03",
+		"DateTimeOffsetValue eq 2012-12-03T07:16:23Z",
+		// "DurationValue eq duration'P12DT23H59M59.999999999999S'", // TODO See ODATA ABNF notation
+		"TimeOfDayValue eq 07:59:59.999",
 		"year(BirthDate) eq 0",
 		"month(BirthDate) eq 12",
 		"day(StartTime) eq 8",
@@ -410,9 +416,12 @@ func TestValidFilterSyntax(t *testing.T) {
 		"minute(StartTime) eq 0",
 		"totaloffsetminutes(StartTime) eq 0",
 		"second(StartTime) eq 0",
+		"fractionalsecond(StartTime) lt 0.123456", // The fractionalseconds function returns the fractional seconds component of the
+		// DateTimeOffset or TimeOfDay parameter value as a non-negative decimal value less than 1.
 		"date(StartTime) ne date(EndTime)",
 		"totaloffsetminutes(StartTime) eq 60",
 		"StartTime eq mindatetime()",
+		// "totalseconds(EndTime sub StartTime) lt duration'PT23H59'", // TODO The totalseconds function returns the duration of the value in total seconds, including fractional seconds.
 		"EndTime eq maxdatetime()",
 		"time(StartTime) le StartOfDay",
 		"time('2015-10-14T23:30:00.104+02:00') lt now()",
