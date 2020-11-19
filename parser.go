@@ -162,11 +162,10 @@ func (p *ParseNode) String() string {
 			s.WriteRune('\n')
 			return
 		}
-		indent := ""
-		for i := 0; i < level; i++ {
-			indent += "  "
-		}
-		s.WriteString(fmt.Sprintf("%s %-10s %-10d\n", indent, n.Token.Value, n.Token.Type))
+		s.WriteString(fmt.Sprintf("[%2d]", n.Token.Type))
+		s.WriteString(strings.Repeat("  ", level))
+		s.WriteString(n.Token.Value)
+		s.WriteRune('\n')
 		for _, v := range n.Children {
 			treePrinter(v, s, level+1)
 		}
