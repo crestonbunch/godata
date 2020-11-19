@@ -127,6 +127,48 @@ func TestFilterDivby(t *testing.T) {
 	}
 }
 
+func TestFilterNotWithNoSpace(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	// Note: according to ODATA ABNF notation, there must be a space between not and open parenthesis.
+	// http://docs.oasis-open.org/odata/odata/v4.01/csprd03/abnf/odata-abnf-construction-rules.txt
+	input := "not(City eq 'Seattle')"
+	{
+		expect := []*Token{
+			&Token{Value: "not", Type: FilterTokenLogical},
+			&Token{Value: "(", Type: FilterTokenOpenParen},
+			&Token{Value: "City", Type: FilterTokenLiteral},
+			&Token{Value: "eq", Type: FilterTokenLogical},
+			&Token{Value: "'Seattle'", Type: FilterTokenString},
+			&Token{Value: ")", Type: FilterTokenCloseParen},
+		}
+		output, err := tokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+		}
+		result, err := CompareTokens(expect, output)
+		if !result {
+			t.Error(err)
+		}
+	}
+
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"not", 0},
+		{"eq", 1},
+		{"City", 2},
+		{"'Seattle'", 2},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
 func TestFilterNot(t *testing.T) {
 	tokenizer := FilterTokenizer()
 	input := "not ( City in ( 'Seattle', 'Atlanta' ) )"
@@ -492,8 +534,15 @@ func TestValidFilterSyntax(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
 			return
-		} else if q.Tree != nil {
-			printTree(q.Tree)
+		} else if q.Tree == nil {
+			t.Errorf("Error parsing query %s. Tree is nil", input)
+			//printTree(q.Tree)
+		}
+		if q.Tree.Token == nil {
+			t.Errorf("Error parsing query %s. Root token is nil", input)
+		}
+		if q.Tree.Token.Type == FilterTokenLiteral {
+			t.Errorf("Error parsing query %s. Unexpected root token type: %+v", input, q.Tree.Token)
 		}
 	}
 }

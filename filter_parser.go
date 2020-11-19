@@ -73,15 +73,27 @@ func FilterTokenizer() *Tokenizer {
 	// E.g. ABNF for 'geo.distance':
 	// distanceMethodCallExpr   = "geo.distance"   OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
 	t.Add("(?i)^(?P<token>(geo.distance|geo.intersects|geo.length))[\\s(]", FilterTokenFunc)
-	// Functions must be followed by a open parenthesis.
+	// According to ODATA ABNF notation, functions must be followed by a open parenthesis with no space
+	// between the function name and the open parenthesis.
+	// However, we are leniently allowing space characters between the function and the open parenthesis.
+	// TODO make leniency configurable.
 	// E.g. ABNF for 'indexof':
 	// indexOfMethodCallExpr    = "indexof"    OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
 	t.Add("(?i)^(?P<token>(substringof|substring|length|indexof|exists))[\\s(]", FilterTokenFunc)
 	// Logical operators must be followed by a space character.
-	t.Add("(?i)^(?P<token>(eq|ne|gt|ge|lt|le|and|or|not|has|in))\\s", FilterTokenLogical)
+	// However, in practice user have written requests such as not(City eq 'Seattle')
+	// We are leniently allowing space characters between the operator name and the open parenthesis.
+	// TODO make leniency configurable.
+	// Example:
+	// notExpr = "not" RWS boolCommonExpr
+	t.Add("(?i)^(?P<token>(eq|ne|gt|ge|lt|le|and|or|not|has|in))[\\s(]", FilterTokenLogical)
 	// Arithmetic operators must be followed by a space character.
 	t.Add("(?i)^(?P<token>(add|sub|mul|divby|div|mod))\\s", FilterTokenOp)
-	// Functions must be followed by a open parenthesis.
+	// According to ODATA ABNF notation, functions must be followed by a open parenthesis with no space
+	// between the function name and the open parenthesis.
+	// However, we are leniently allowing space characters between the function and the open parenthesis.
+	// TODO make leniency configurable.
+	//
 	// E.g. ABNF for 'contains':
 	// containsMethodCallExpr   = "contains"   OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
 	t.Add("(?i)^(?P<token>(contains|endswith|startswith|tolower|toupper|"+
