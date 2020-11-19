@@ -500,6 +500,7 @@ func TestValidFilterSyntax(t *testing.T) {
 // The URLs below are not valid ODATA syntax, the parser should return an error.
 func TestInvalidFilterSyntax(t *testing.T) {
 	queries := []string{
+		//"City",                                 // Just a single literal
 		"",                                     // Nothing
 		"eq",                                   // Just a single logical operator
 		"and",                                  // Just a single logical operator
@@ -507,7 +508,6 @@ func TestInvalidFilterSyntax(t *testing.T) {
 		"add ",                                 // Just a single arithmetic operator
 		"add 2",                                // Missing operands
 		"add 2 3",                              // Missing operands
-		"City",                                 // Just a single literal
 		"City City City City",                  // Sequence of literals
 		"City eq",                              // Missing operand
 		"City eq (",                            // Wrong operand
