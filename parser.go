@@ -153,6 +153,28 @@ type ParseNode struct {
 	Children []*ParseNode
 }
 
+func (p *ParseNode) String() string {
+	var sb strings.Builder
+	var treePrinter func(n *ParseNode, sb *strings.Builder, level int)
+
+	treePrinter = func(n *ParseNode, s *strings.Builder, level int) {
+		if n == nil || n.Token == nil {
+			s.WriteRune('\n')
+			return
+		}
+		indent := ""
+		for i := 0; i < level; i++ {
+			indent += "  "
+		}
+		s.WriteString(fmt.Sprintf("%s %-10s %-10d\n", indent, n.Token.Value, n.Token.Type))
+		for _, v := range n.Children {
+			treePrinter(v, s, level+1)
+		}
+	}
+	treePrinter(p, &sb, 0)
+	return sb.String()
+}
+
 func EmptyParser() *Parser {
 	return &Parser{make(map[string]*Operator, 0), make(map[string]*Function)}
 }

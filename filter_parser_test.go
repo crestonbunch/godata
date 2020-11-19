@@ -180,7 +180,7 @@ func TestFilterNot(t *testing.T) {
 		pos := 0
 		err = CompareTree(tree, expect, &pos, 0)
 		if err != nil {
-			printTree(tree, 0)
+			printTree(tree)
 			t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 		}
 
@@ -475,6 +475,7 @@ func TestValidFilterSyntax(t *testing.T) {
 		"not (City in ('Dallas'))",
 		"not (City in ('Dallas', 'Houston'))",
 		"not (((City eq 'Dallas')))",
+		"not(S1 eq 'foo')",
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')",
 		"Tags/ANY(var:var/Key eq 'Site' AND var/Value eq 'London')",
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') and not (City in ('Dallas'))",
@@ -492,7 +493,7 @@ func TestValidFilterSyntax(t *testing.T) {
 			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
 			return
 		} else if q.Tree != nil {
-			//printTree(q.Tree, 0)
+			printTree(q.Tree)
 		}
 	}
 }
@@ -553,7 +554,7 @@ func TestInvalidFilterSyntax(t *testing.T) {
 		q, err := ParseFilterString(input)
 		if err == nil {
 			// The parser has incorrectly determined the syntax is valid.
-			printTree(q.Tree, 0)
+			printTree(q.Tree)
 		}
 		if err == nil {
 			t.Errorf("The query '$filter=%s' is not valid ODATA syntax. The ODATA parser should return an error", input)
@@ -759,19 +760,8 @@ func TestFilterParserTree(t *testing.T) {
 
 }
 
-func printTree(n *ParseNode, level int) {
-	if n == nil || n.Token == nil {
-		fmt.Printf("\n")
-		return
-	}
-	indent := ""
-	for i := 0; i < level; i++ {
-		indent += "  "
-	}
-	fmt.Printf("%s %-10s %-10d\n", indent, n.Token.Value, n.Token.Type)
-	for _, v := range n.Children {
-		printTree(v, level+1)
-	}
+func printTree(n *ParseNode) {
+	fmt.Printf("Tree:\n%s\n", n.String())
 }
 
 func TestNestedPath(t *testing.T) {
@@ -832,7 +822,7 @@ func TestSubstringFunction(t *testing.T) {
 		pos := 0
 		err = CompareTree(tree, expect, &pos, 0)
 		if err != nil {
-			printTree(tree, 0)
+			printTree(tree)
 			t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 		}
 	}
@@ -864,7 +854,7 @@ func TestSubstringFunction(t *testing.T) {
 		pos := 0
 		err = CompareTree(tree, expect, &pos, 0)
 		if err != nil {
-			printTree(tree, 0)
+			printTree(tree)
 			t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 		}
 	}
@@ -898,7 +888,7 @@ func TestSubstringofFunction(t *testing.T) {
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
 	if err != nil {
-		printTree(tree, 0)
+		printTree(tree)
 		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
@@ -929,7 +919,7 @@ func TestGeoFunctions(t *testing.T) {
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
 	if err != nil {
-		printTree(tree, 0)
+		printTree(tree)
 		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
@@ -973,7 +963,7 @@ func TestLambda1(t *testing.T) {
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
 	if err != nil {
-		printTree(tree, 0)
+		printTree(tree)
 		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
@@ -1020,7 +1010,7 @@ func TestLambda2(t *testing.T) {
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
 	if err != nil {
-		printTree(tree, 0)
+		printTree(tree)
 		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
@@ -1074,7 +1064,7 @@ func TestLambda3(t *testing.T) {
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
 	if err != nil {
-		printTree(tree, 0)
+		printTree(tree)
 		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
