@@ -500,7 +500,9 @@ func TestValidFilterSyntax(t *testing.T) {
 // The URLs below are not valid ODATA syntax, the parser should return an error.
 func TestInvalidFilterSyntax(t *testing.T) {
 	queries := []string{
-		//"()", // TODO: this should not be valid, it's not a boolean expression
+		"()", // It's not a boolean expression
+		"(TRUE)",
+		"(City)",
 		"(",
 		"((((",
 		")",

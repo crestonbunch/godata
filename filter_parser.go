@@ -35,9 +35,6 @@ func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(tokens) == 1 && tokens[0].Type != FilterTokenBoolean {
-		return nil, BadRequestError("Value must be a boolean expression")
-	}
 	// TODO: can we do this in one fell swoop?
 	postfix, err := GlobalFilterParser.InfixToPostfix(tokens)
 	if err != nil {
@@ -46,6 +43,10 @@ func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 	tree, err := GlobalFilterParser.PostfixToTree(postfix)
 	if err != nil {
 		return nil, err
+	}
+	if tree == nil || tree.Token == nil ||
+		(len(tree.Children) == 0 && tree.Token.Type != FilterTokenBoolean) {
+		return nil, BadRequestError("Value must be a boolean expression")
 	}
 	return &GoDataFilterQuery{tree, filter}, nil
 }
