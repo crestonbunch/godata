@@ -380,6 +380,13 @@ func TestValidFilterSyntax(t *testing.T) {
 		// Bolean values
 		"true",
 		"false",
+		"(true)",
+		"((true))",
+		"((true)) or false",
+		"not true",
+		"not false",
+		"not (not true)",
+		//"not not true", // TODO: I think this should work. 'not not true' is true
 		// String functions
 		"contains(CompanyName,'freds')",
 		"endswith(CompanyName,'Futterkiste')",
@@ -493,11 +500,18 @@ func TestValidFilterSyntax(t *testing.T) {
 // The URLs below are not valid ODATA syntax, the parser should return an error.
 func TestInvalidFilterSyntax(t *testing.T) {
 	queries := []string{
+		//"()", // TODO: this should not be valid, it's not a boolean expression
+		"(",
+		"((((",
+		")",
+		"12345",                                // Number 12345 is not a boolean expression
+		"0",                                    // Number 0 is not a boolean expression
+		"'123'",                                // String '123' is not a boolean expression
 		"TRUE",                                 // Should be 'true' lowercase
 		"FALSE",                                // Should be 'false' lowercase
 		"yes",                                  // yes is not a boolean expression
 		"no",                                   // yes is not a boolean expression
-		"",                                     // Nothing
+		"",                                     // Empty string.
 		"eq",                                   // Just a single logical operator
 		"and",                                  // Just a single logical operator
 		"add",                                  // Just a single arithmetic operator
