@@ -194,4 +194,28 @@ func TestUrlParserStrictValidation(t *testing.T) {
 		return
 	}
 
+	testUrl = "Employees(1)/Sales.Manager?$select=LastName&$expand=Address"
+	parsedUrl, err = url.Parse(testUrl)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	_, err = ParseRequest(parsedUrl.Path, parsedUrl.Query(), false)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	testUrl = "Employees(1)/Sales.Manager?$select=FirstName,LastName&$expand=Address"
+	parsedUrl, err = url.Parse(testUrl)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	_, err = ParseRequest(parsedUrl.Path, parsedUrl.Query(), false)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 }

@@ -537,21 +537,13 @@ func TestInvalidFilterSyntax(t *testing.T) {
 		//"contains(Name, 'a', 'b', 'c', 'd')", // Too many function arguments
 	}
 	for _, input := range queries {
-		tokens, err := GlobalFilterTokenizer.Tokenize(input)
+		q, err := ParseFilterString(input)
 		if err == nil {
-			var output *tokenQueue
-			output, err = GlobalFilterParser.InfixToPostfix(tokens)
-			if err == nil {
-				var tree *ParseNode
-				tree, err = GlobalFilterParser.PostfixToTree(output)
-				if err == nil {
-					// The parser has incorrectly determined the syntax is valid.
-					printTree(tree, 0)
-				}
-			}
+			// The parser has incorrectly determined the syntax is valid.
+			printTree(q.Tree, 0)
 		}
 		if err == nil {
-			t.Errorf("The query '%s' is not valid ODATA syntax. The ODATA parser should return an error", input)
+			t.Errorf("The query '$filter=%s' is not valid ODATA syntax. The ODATA parser should return an error", input)
 			return
 		}
 	}
