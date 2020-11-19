@@ -28,7 +28,7 @@ const (
 var GlobalFilterTokenizer = FilterTokenizer()
 var GlobalFilterParser = FilterParser()
 
-// Convert an input string from the $filter part of the URL into a parse
+// ParseFilterString converts an input string from the $filter part of the URL into a parse
 // tree that can be used by providers to create a response.
 func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 	tokens, err := GlobalFilterTokenizer.Tokenize(filter)
@@ -43,6 +43,10 @@ func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 	tree, err := GlobalFilterParser.PostfixToTree(postfix)
 	if err != nil {
 		return nil, err
+	}
+	if tree == nil || tree.Token == nil ||
+		(len(tree.Children) == 0 && tree.Token.Type != FilterTokenBoolean) {
+		return nil, BadRequestError("Value must be a boolean expression")
 	}
 	return &GoDataFilterQuery{tree, filter}, nil
 }

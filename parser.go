@@ -110,8 +110,8 @@ func (t *Tokenizer) TokenizeBytes(target []byte) ([]*Token, error) {
 	if len(target) > 0 && !match {
 		return result, BadRequestError("No matching token for " + string(target))
 	}
-	if len(result) <= 1 {
-		return result, BadRequestError("Missing parameter for " + string(target))
+	if len(result) < 1 {
+		return result, BadRequestError("Empty query parameter")
 	}
 	return result, nil
 }

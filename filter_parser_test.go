@@ -377,6 +377,16 @@ func TestNestedFunction(t *testing.T) {
 
 func TestValidFilterSyntax(t *testing.T) {
 	queries := []string{
+		// Bolean values
+		"true",
+		"false",
+		"(true)",
+		"((true))",
+		"((true)) or false",
+		"not true",
+		"not false",
+		"not (not true)",
+		//"not not true", // TODO: I think this should work. 'not not true' is true
 		// String functions
 		"contains(CompanyName,'freds')",
 		"endswith(CompanyName,'Futterkiste')",
@@ -485,23 +495,12 @@ func TestValidFilterSyntax(t *testing.T) {
 			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'San Francisco')",
 	}
 	for _, input := range queries {
-		tokens, err := GlobalFilterTokenizer.Tokenize(input)
+		q, err := ParseFilterString(input)
 		if err != nil {
 			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
 			return
-		}
-		output, err := GlobalFilterParser.InfixToPostfix(tokens)
-		if err != nil {
-			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
-			return
-		}
-		fmt.Printf("Postfix queue: %v\n", output.String())
-		tree, err := GlobalFilterParser.PostfixToTree(output)
-		if err != nil {
-			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
-			return
-		} else if tree != nil {
-			printTree(tree, 0)
+		} else if q.Tree != nil {
+			printTree(q.Tree, 0)
 		}
 	}
 }
@@ -509,7 +508,20 @@ func TestValidFilterSyntax(t *testing.T) {
 // The URLs below are not valid ODATA syntax, the parser should return an error.
 func TestInvalidFilterSyntax(t *testing.T) {
 	queries := []string{
-		"",                                     // Nothing
+		"()", // It's not a boolean expression
+		"(TRUE)",
+		"(City)",
+		"(",
+		"((((",
+		")",
+		"12345",                                // Number 12345 is not a boolean expression
+		"0",                                    // Number 0 is not a boolean expression
+		"'123'",                                // String '123' is not a boolean expression
+		"TRUE",                                 // Should be 'true' lowercase
+		"FALSE",                                // Should be 'false' lowercase
+		"yes",                                  // yes is not a boolean expression
+		"no",                                   // yes is not a boolean expression
+		"",                                     // Empty string.
 		"eq",                                   // Just a single logical operator
 		"and",                                  // Just a single logical operator
 		"add",                                  // Just a single arithmetic operator
@@ -546,21 +558,13 @@ func TestInvalidFilterSyntax(t *testing.T) {
 		//"contains(Name, 'a', 'b', 'c', 'd')", // Too many function arguments
 	}
 	for _, input := range queries {
-		tokens, err := GlobalFilterTokenizer.Tokenize(input)
+		q, err := ParseFilterString(input)
 		if err == nil {
-			var output *tokenQueue
-			output, err = GlobalFilterParser.InfixToPostfix(tokens)
-			if err == nil {
-				var tree *ParseNode
-				tree, err = GlobalFilterParser.PostfixToTree(output)
-				if err == nil {
-					// The parser has incorrectly determined the syntax is valid.
-					printTree(tree, 0)
-				}
-			}
+			// The parser has incorrectly determined the syntax is valid.
+			printTree(q.Tree, 0)
 		}
 		if err == nil {
-			t.Errorf("The query '%s' is not valid ODATA syntax. The ODATA parser should return an error", input)
+			t.Errorf("The query '$filter=%s' is not valid ODATA syntax. The ODATA parser should return an error", input)
 			return
 		}
 	}
