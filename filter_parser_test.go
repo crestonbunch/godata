@@ -377,6 +377,9 @@ func TestNestedFunction(t *testing.T) {
 
 func TestValidFilterSyntax(t *testing.T) {
 	queries := []string{
+		// Bolean values
+		"true",
+		"false",
 		// String functions
 		"contains(CompanyName,'freds')",
 		"endswith(CompanyName,'Futterkiste')",
@@ -477,22 +480,12 @@ func TestValidFilterSyntax(t *testing.T) {
 			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'San Francisco')",
 	}
 	for _, input := range queries {
-		tokens, err := GlobalFilterTokenizer.Tokenize(input)
+		q, err := ParseFilterString(input)
 		if err != nil {
 			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
 			return
-		}
-		output, err := GlobalFilterParser.InfixToPostfix(tokens)
-		if err != nil {
-			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
-			return
-		}
-		tree, err := GlobalFilterParser.PostfixToTree(output)
-		if err != nil {
-			t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
-			return
-		} else if tree != nil {
-			//printTree(tree, 0)
+		} else if q.Tree != nil {
+			//printTree(q.Tree, 0)
 		}
 	}
 }
@@ -500,7 +493,10 @@ func TestValidFilterSyntax(t *testing.T) {
 // The URLs below are not valid ODATA syntax, the parser should return an error.
 func TestInvalidFilterSyntax(t *testing.T) {
 	queries := []string{
-		//"City",                                 // Just a single literal
+		"TRUE",                                 // Should be 'true' lowercase
+		"FALSE",                                // Should be 'false' lowercase
+		"yes",                                  // yes is not a boolean expression
+		"no",                                   // yes is not a boolean expression
 		"",                                     // Nothing
 		"eq",                                   // Just a single logical operator
 		"and",                                  // Just a single logical operator
@@ -508,6 +504,7 @@ func TestInvalidFilterSyntax(t *testing.T) {
 		"add ",                                 // Just a single arithmetic operator
 		"add 2",                                // Missing operands
 		"add 2 3",                              // Missing operands
+		"City",                                 // Just a single literal
 		"City City City City",                  // Sequence of literals
 		"City eq",                              // Missing operand
 		"City eq (",                            // Wrong operand
