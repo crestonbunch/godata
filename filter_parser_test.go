@@ -133,6 +133,65 @@ func TestFilterAnyArrayOfPrimitiveTypes(t *testing.T) {
 	}
 }
 
+func TestFilterGuid(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	input := "GuidValue eq 01234567-89ab-cdef-0123-456789abcdef"
+
+	expect := []*Token{
+		&Token{Value: "GuidValue", Type: FilterTokenLiteral},
+		&Token{Value: "eq", Type: FilterTokenLogical},
+		&Token{Value: "01234567-89ab-cdef-0123-456789abcdef", Type: FilterTokenGuid},
+	}
+	output, err := tokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+	}
+	result, err := CompareTokens(expect, output)
+	if !result {
+		t.Error(err)
+	}
+}
+
+func TestFilterDurationWithType(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	input := "Task eq duration'P12DT23H59M59.999999999999S'"
+
+	expect := []*Token{
+		&Token{Value: "Task", Type: FilterTokenLiteral},
+		&Token{Value: "eq", Type: FilterTokenLogical},
+		&Token{Value: "duration'P12DT23H59M59.999999999999S'", Type: FilterTokenDuration},
+	}
+	output, err := tokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+	}
+	result, err := CompareTokens(expect, output)
+	if !result {
+		printTokens(output)
+		t.Error(err)
+	}
+}
+
+func TestFilterDurationWithoutType(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	input := "Task eq 'P12DT23H59M59.999999999999S'"
+
+	expect := []*Token{
+		&Token{Value: "Task", Type: FilterTokenLiteral},
+		&Token{Value: "eq", Type: FilterTokenLogical},
+		&Token{Value: "'P12DT23H59M59.999999999999S'", Type: FilterTokenDuration},
+	}
+	output, err := tokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+	}
+	result, err := CompareTokens(expect, output)
+	if !result {
+		printTokens(output)
+		t.Error(err)
+	}
+}
+
 func TestFilterAnyWithNoArgs(t *testing.T) {
 	tokenizer := FilterTokenizer()
 	input := "Tags/any()"
@@ -876,10 +935,11 @@ func TestValidFilterSyntax(t *testing.T) {
 		"trim(CompanyName) eq 'Alfreds Futterkiste'",
 		"concat(concat(City,', '), Country) eq 'Berlin, Germany'",
 		// GUID
-		// "GuidValue eq 01234567-89ab-cdef-0123-456789abcdef", // TODO According to ODATA ABNF notation, GUID values do not have quotes.
+		"GuidValue eq 01234567-89ab-cdef-0123-456789abcdef", // TODO According to ODATA ABNF notation, GUID values do not have quotes.
 		// Date and Time functions
 		"StartDate eq 2012-12-03",
 		"DateTimeOffsetValue eq 2012-12-03T07:16:23Z",
+		// duration      = [ "duration" ] SQUOTE durationValue SQUOTE
 		// "DurationValue eq duration'P12DT23H59M59.999999999999S'", // TODO See ODATA ABNF notation
 		"TimeOfDayValue eq 07:59:59.999",
 		"year(BirthDate) eq 0",
@@ -1287,6 +1347,14 @@ func TestFilterParserTree(t *testing.T) {
 
 func printTree(n *ParseNode) {
 	fmt.Printf("Tree:\n%s\n", n.String())
+}
+
+func printTokens(tokens []*Token) {
+	s := make([]string, len(tokens))
+	for i := range tokens {
+		s[i] = tokens[i].Value
+	}
+	fmt.Printf("TOKENS: %s\n", strings.Join(s, " "))
 }
 
 func TestNestedPath(t *testing.T) {
