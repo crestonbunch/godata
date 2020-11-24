@@ -52,6 +52,9 @@ func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 	return &GoDataFilterQuery{tree, filter}, nil
 }
 
+// FilterTokenDurationRe is a regex for a token of type duration.
+const FilterTokenDurationRe = `^(duration)?'-?P((([0-9]+Y([0-9]+M)?([0-9]+D)?|([0-9]+M)([0-9]+D)?|([0-9]+D))(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S)))?)|(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S))))'`
+
 // FilterTokenizer creates a tokenizer capable of tokenizing filter statements
 // 4.01 Services MUST support case-insensitive operator names.
 // See https://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part2-url-conventions.html#_Toc31360955
@@ -64,7 +67,7 @@ func FilterTokenizer() *Tokenizer {
 	// Duration literals in OData 4.0 required prefixing with “duration”.
 	// In OData 4.01, services MUST support duration and enumeration literals with or without the type prefix.
 	// OData clients that want to operate across OData 4.0 and OData 4.01 services should always include the prefix for duration and enumeration types.
-	t.Add(`^(duration)?'-?P((([0-9]+Y([0-9]+M)?([0-9]+D)?|([0-9]+M)([0-9]+D)?|([0-9]+D))(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S)))?)|(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S))))'`, FilterTokenDuration)
+	t.Add(FilterTokenDurationRe, FilterTokenDuration)
 	t.Add("^[0-9]{4,4}-[0-9]{2,2}-[0-9]{2,2}T[0-9]{2,2}:[0-9]{2,2}(:[0-9]{2,2}(.[0-9]+)?)?(Z|[+-][0-9]{2,2}:[0-9]{2,2})", FilterTokenDateTime)
 	t.Add("^-?[0-9]{4,4}-[0-9]{2,2}-[0-9]{2,2}", FilterTokenDate)
 	t.Add("^[0-9]{2,2}:[0-9]{2,2}(:[0-9]{2,2}(.[0-9]+)?)?", FilterTokenTime)
