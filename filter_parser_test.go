@@ -351,7 +351,7 @@ func TestFilterInOperator(t *testing.T) {
 		&Token{Value: "'Atlanta'", Type: FilterTokenString},
 		&Token{Value: "'Paris'", Type: FilterTokenString},
 		&Token{Value: "3", Type: TokenTypeArgCount},
-		&Token{Value: "list", Type: TokenTypeListExpr},
+		&Token{Value: TokenListExpr, Type: TokenTypeListExpr},
 		&Token{Value: "in", Type: FilterTokenLogical},
 	}
 	result, err = CompareQueue(expect, postfix)
@@ -367,7 +367,7 @@ func TestFilterInOperator(t *testing.T) {
 	var treeExpect []expectedParseNode = []expectedParseNode{
 		{"in", 0},
 		{"City", 1},
-		{"list", 1},
+		{TokenListExpr, 1},
 		{"'Seattle'", 2},
 		{"'Atlanta'", 2},
 		{"'Paris'", 2},
@@ -409,7 +409,7 @@ func TestFilterInOperatorSingleValue(t *testing.T) {
 		&Token{Value: "City", Type: FilterTokenLiteral},
 		&Token{Value: "'Seattle'", Type: FilterTokenString},
 		&Token{Value: "1", Type: TokenTypeArgCount},
-		&Token{Value: "list", Type: TokenTypeListExpr},
+		&Token{Value: TokenListExpr, Type: TokenTypeListExpr},
 		&Token{Value: "in", Type: FilterTokenLogical},
 	}
 	result, err = CompareQueue(expect, postfix)
@@ -425,7 +425,7 @@ func TestFilterInOperatorSingleValue(t *testing.T) {
 	var treeExpect []expectedParseNode = []expectedParseNode{
 		{"in", 0},
 		{"City", 1},
-		{"list", 1},
+		{TokenListExpr, 1},
 		{"'Seattle'", 2},
 	}
 	pos := 0
@@ -463,7 +463,7 @@ func TestFilterInOperatorEmptyList(t *testing.T) {
 	expect = []*Token{
 		&Token{Value: "City", Type: FilterTokenLiteral},
 		&Token{Value: "0", Type: TokenTypeArgCount},
-		&Token{Value: "list", Type: TokenTypeListExpr},
+		&Token{Value: TokenListExpr, Type: TokenTypeListExpr},
 		&Token{Value: "in", Type: FilterTokenLogical},
 	}
 	result, err = CompareQueue(expect, postfix)
@@ -479,7 +479,7 @@ func TestFilterInOperatorEmptyList(t *testing.T) {
 	var treeExpect []expectedParseNode = []expectedParseNode{
 		{"in", 0},
 		{"City", 1},
-		{"list", 1},
+		{TokenListExpr, 1},
 	}
 	pos := 0
 	err = CompareTree(tree, treeExpect, &pos, 0)
@@ -544,25 +544,25 @@ func TestFilterInOperatorBothSides(t *testing.T) {
 		&Token{Value: "1", Type: FilterTokenInteger},
 		&Token{Value: "2", Type: FilterTokenInteger},
 		&Token{Value: "2", Type: TokenTypeArgCount},
-		&Token{Value: "list", Type: TokenTypeListExpr},
+		&Token{Value: TokenListExpr, Type: TokenTypeListExpr},
 
 		&Token{Value: "'ab'", Type: FilterTokenString},
 		&Token{Value: "'cd'", Type: FilterTokenString},
 		&Token{Value: "2", Type: TokenTypeArgCount},
-		&Token{Value: "list", Type: TokenTypeListExpr},
+		&Token{Value: TokenListExpr, Type: TokenTypeListExpr},
 
 		&Token{Value: "1", Type: FilterTokenInteger},
 		&Token{Value: "2", Type: FilterTokenInteger},
 		&Token{Value: "2", Type: TokenTypeArgCount},
-		&Token{Value: "list", Type: TokenTypeListExpr},
+		&Token{Value: TokenListExpr, Type: TokenTypeListExpr},
 
 		&Token{Value: "'abc'", Type: FilterTokenString},
 		&Token{Value: "'def'", Type: FilterTokenString},
 		&Token{Value: "2", Type: TokenTypeArgCount},
-		&Token{Value: "list", Type: TokenTypeListExpr},
+		&Token{Value: TokenListExpr, Type: TokenTypeListExpr},
 
 		&Token{Value: "3", Type: TokenTypeArgCount},
-		&Token{Value: "list", Type: TokenTypeListExpr},
+		&Token{Value: TokenListExpr, Type: TokenTypeListExpr},
 
 		&Token{Value: "in", Type: FilterTokenLogical},
 	}
@@ -579,18 +579,18 @@ func TestFilterInOperatorBothSides(t *testing.T) {
 
 	var treeExpect []expectedParseNode = []expectedParseNode{
 		{"in", 0},
-		{"list", 1},
+		{TokenListExpr, 1},
 		{"1", 2},
 		{"2", 2},
 		//  ('ab', 'cd'), (1, 2), ('abc', 'def')
-		{"list", 1},
-		{"list", 2},
+		{TokenListExpr, 1},
+		{TokenListExpr, 2},
 		{"'ab'", 3},
 		{"'cd'", 3},
-		{"list", 2},
+		{TokenListExpr, 2},
 		{"1", 3},
 		{"2", 3},
-		{"list", 2},
+		{TokenListExpr, 2},
 		{"'abc'", 3},
 		{"'def'", 3},
 	}
@@ -644,7 +644,7 @@ func TestFilterInOperatorWithFunc(t *testing.T) {
 	var expect []expectedParseNode = []expectedParseNode{
 		{"in", 0},
 		{"City", 1},
-		{"list", 1},
+		{TokenListExpr, 1},
 		{"'Seattle'", 2},
 		{"concat", 2},
 		{"'San'", 3},
@@ -706,7 +706,7 @@ func TestFilterNotInListExpr(t *testing.T) {
 			{"not", 0},
 			{"in", 1},
 			{"City", 2},
-			{"list", 2},
+			{TokenListExpr, 2},
 			{"'Seattle'", 3},
 			{"'Atlanta'", 3},
 		}
@@ -1220,7 +1220,7 @@ func TestFilterIn(t *testing.T) {
 			t.Errorf("Unexpected operand for the 'in' operator. Expected 'Site', got %s",
 				tree.Children[0].Children[1].Children[0].Token.Value)
 		}
-		if tree.Children[0].Children[1].Children[1].Token.Value != "list" {
+		if tree.Children[0].Children[1].Children[1].Token.Value != TokenListExpr {
 			t.Errorf("Unexpected operand for the 'in' operator. Expected 'list', got %s",
 				tree.Children[0].Children[1].Children[1].Token.Value)
 		}

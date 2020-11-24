@@ -14,18 +14,18 @@ const (
 	OpAssociationNone
 )
 
-// TokenTypeWall is a delimiter token for variadic functions and operators
-const TokenTypeWall int = -1
-const TokenTypeArgCount int = -2
-const TokenTypeListExpr int = -3
+// TokenTypeArgCount is used to specify the number of arguments of a function or listExpr
+// This is used to handle variadic functions and listExpr.
+const TokenTypeArgCount int = -1
 
-/*
-const (
-	NodeTypeLiteral int = iota
-	NodeTypeOp
-	NodeTypeFunc
-)
-*/
+// TokenTypeListExpr represents a parent node for a variadic listExpr.
+// "list"
+//   "item1"
+//   "item2"
+//   ...
+const TokenTypeListExpr int = -2
+
+const TokenListExpr = "list"
 
 type Tokenizer struct {
 	TokenMatchers  []*TokenMatcher
@@ -378,7 +378,7 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 				// Enqueue a 'list' token if we are processing a ListExpr.
 				if !isFunc {
 					queue.Enqueue(&Token{
-						Value: "list",
+						Value: TokenListExpr,
 						Type:  TokenTypeListExpr,
 					})
 				}
