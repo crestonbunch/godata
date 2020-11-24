@@ -118,27 +118,29 @@ func FilterTokenizer() *Tokenizer {
 
 func FilterParser() *Parser {
 	parser := EmptyParser()
-	parser.DefineOperator("/", 2, OpAssociationLeft, 9, false)
-	parser.DefineOperator("has", 2, OpAssociationLeft, 9, false)
-	parser.DefineOperator("-", 1, OpAssociationNone, 8, false)
-	parser.DefineOperator("not", 1, OpAssociationLeft, 8, false)
-	parser.DefineOperator("cast", 2, OpAssociationNone, 8, false)
-	parser.DefineOperator("mul", 2, OpAssociationNone, 7, false)
-	parser.DefineOperator("div", 2, OpAssociationNone, 7, false)   // Division
-	parser.DefineOperator("divby", 2, OpAssociationNone, 7, false) // Decimal Division
-	parser.DefineOperator("mod", 2, OpAssociationNone, 7, false)
-	parser.DefineOperator("add", 2, OpAssociationNone, 6, false)
-	parser.DefineOperator("sub", 2, OpAssociationNone, 6, false)
-	parser.DefineOperator("gt", 2, OpAssociationLeft, 5, false)
-	parser.DefineOperator("ge", 2, OpAssociationLeft, 5, false)
-	parser.DefineOperator("lt", 2, OpAssociationLeft, 5, false)
-	parser.DefineOperator("le", 2, OpAssociationLeft, 5, false)
-	parser.DefineOperator("eq", 2, OpAssociationLeft, 4, false)
-	parser.DefineOperator("ne", 2, OpAssociationLeft, 4, false)
-	parser.DefineOperator("in", 2, OpAssociationLeft, 4, true) // 'in' operator takes a literal list.
-	parser.DefineOperator("and", 2, OpAssociationLeft, 3, false)
-	parser.DefineOperator("or", 2, OpAssociationLeft, 2, false)
-	parser.DefineOperator(":", 2, OpAssociationLeft, 1, false)
+	parser.DefineOperator("/", 2, OpAssociationLeft, 9)
+	parser.DefineOperator("has", 2, OpAssociationLeft, 9)
+	// 'in' operator takes a literal list.
+	// City in ('Seattle') needs to be interpreted as a list expression, not a paren expression.
+	parser.DefineOperator("in", 2, OpAssociationLeft, 9).SetPreferListExpr(true)
+	parser.DefineOperator("-", 1, OpAssociationNone, 8)
+	parser.DefineOperator("not", 1, OpAssociationLeft, 8)
+	parser.DefineOperator("cast", 2, OpAssociationNone, 8)
+	parser.DefineOperator("mul", 2, OpAssociationNone, 7)
+	parser.DefineOperator("div", 2, OpAssociationNone, 7)   // Division
+	parser.DefineOperator("divby", 2, OpAssociationNone, 7) // Decimal Division
+	parser.DefineOperator("mod", 2, OpAssociationNone, 7)
+	parser.DefineOperator("add", 2, OpAssociationNone, 6)
+	parser.DefineOperator("sub", 2, OpAssociationNone, 6)
+	parser.DefineOperator("gt", 2, OpAssociationLeft, 5)
+	parser.DefineOperator("ge", 2, OpAssociationLeft, 5)
+	parser.DefineOperator("lt", 2, OpAssociationLeft, 5)
+	parser.DefineOperator("le", 2, OpAssociationLeft, 5)
+	parser.DefineOperator("eq", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("ne", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("and", 2, OpAssociationLeft, 3)
+	parser.DefineOperator("or", 2, OpAssociationLeft, 2)
+	parser.DefineOperator(":", 2, OpAssociationLeft, 1)
 	parser.DefineFunction("contains", []int{2})
 	parser.DefineFunction("endswith", []int{2})
 	parser.DefineFunction("startswith", []int{2})
