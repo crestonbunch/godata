@@ -133,6 +133,44 @@ func TestFilterAnyArrayOfPrimitiveTypes(t *testing.T) {
 	}
 }
 
+func TestFilterAnyWithNoArgs(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	input := "Tags/any()"
+	{
+		expect := []*Token{
+			&Token{Value: "Tags", Type: FilterTokenLiteral},
+			&Token{Value: "/", Type: FilterTokenNav},
+			&Token{Value: "any", Type: FilterTokenLambda},
+			&Token{Value: "(", Type: FilterTokenOpenParen},
+			&Token{Value: ")", Type: FilterTokenCloseParen},
+		}
+		output, err := tokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+		}
+
+		result, err := CompareTokens(expect, output)
+		if !result {
+			t.Error(err)
+		}
+	}
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Tags", 1},
+		{"any", 1},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		fmt.Printf("Got tree:\n%v\n", q.Tree.String())
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
 func TestFilterDivby(t *testing.T) {
 	{
 		tokenizer := FilterTokenizer()
@@ -925,6 +963,9 @@ func TestValidFilterSyntax(t *testing.T) {
 		"not (City in ('Dallas', 'Houston'))",
 		"not (((City eq 'Dallas')))",
 		"not(S1 eq 'foo')",
+		// Lambda operators
+		"Tags/any()",
+		"Tags/any(var:var eq 'Site')",
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')",
 		"Tags/ANY(var:var/Key eq 'Site' AND var/Value eq 'London')",
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') and not (City in ('Dallas'))",
@@ -995,6 +1036,7 @@ func TestInvalidFilterSyntax(t *testing.T) {
 		// TODO: the query below should fail.
 		//"Tags/any(var:var/Key eq 'Site') orTags/any(var:var/Key eq 'Site')",
 		"not (City eq 'Dallas') and Name eq 'Houston')",
+		"Tags/all()",                   // The all operator cannot be used without an argument expression.
 		"LastName contains 'Smith'",    // Previously the godata library was not returning an error.
 		"contains",                     // Function with missing parenthesis and arguments
 		"contains()",                   // Function with missing arguments

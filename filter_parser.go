@@ -175,7 +175,7 @@ func FilterParser() *Parser {
 	parser.DefineFunction("geo.distance", []int{2})
 	parser.DefineFunction("geo.intersects", []int{2})
 	parser.DefineFunction("geo.length", []int{1})
-	parser.DefineFunction("any", []int{1})
+	parser.DefineFunction("any", []int{0, 1}) // 'any' can take either zero or one argument.
 	parser.DefineFunction("all", []int{1})
 
 	return parser
