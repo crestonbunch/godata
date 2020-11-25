@@ -53,7 +53,9 @@ func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 }
 
 // FilterTokenDurationRe is a regex for a token of type duration.
-const FilterTokenDurationRe = `^(duration)?'-?P((([0-9]+Y([0-9]+M)?([0-9]+D)?|([0-9]+M)([0-9]+D)?|([0-9]+D))(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S)))?)|(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S))))'`
+// The token value is set to the ISO 8601 string inside the single quotes
+// For example, if the input data is duration'PT2H', then the token value is set to PT2H without quotes.
+const FilterTokenDurationRe = `^(duration)?'(?P<subtoken>-?P((([0-9]+Y([0-9]+M)?([0-9]+D)?|([0-9]+M)([0-9]+D)?|([0-9]+D))(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S)))?)|(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S)))))'`
 
 // FilterTokenizer creates a tokenizer capable of tokenizing filter statements
 // 4.01 Services MUST support case-insensitive operator names.

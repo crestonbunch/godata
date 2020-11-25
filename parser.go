@@ -97,12 +97,22 @@ func (t *Tokenizer) TokenizeBytes(target []byte) ([]*Token, error) {
 			// If the input data is `Name eq 'Bob'`, the token is correctly set to 'eq' and
 			// the space after eq is not consumed, because the space character itself is supposed
 			// to be the next token.
+			//
+			// If Token.Value needs to be a sub-regex but the entire token needs to be consumed,
+			// use 'subtoken'
+			//    ^(duration)?'(?P<subtoken>[0-9])'
+			l := 0
 			if idx := m.Re.SubexpIndex("token"); idx > 0 {
 				token = tokens[idx]
+				l = len(token)
+			} else if idx := m.Re.SubexpIndex("subtoken"); idx > 0 {
+				token = tokens[idx]
+				l = len(tokens[0])
 			} else {
 				token = tokens[0]
+				l = len(token)
 			}
-			target = target[len(token):] // remove the token from the input
+			target = target[l:] // remove the token from the input
 			if !ignore {
 				if m.CaseInsentitive {
 					// In ODATA 4.0.1, operators and functions are case insensitive.

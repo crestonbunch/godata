@@ -159,7 +159,8 @@ func TestFilterDurationWithType(t *testing.T) {
 	expect := []*Token{
 		&Token{Value: "Task", Type: FilterTokenLiteral},
 		&Token{Value: "eq", Type: FilterTokenLogical},
-		&Token{Value: "duration'P12DT23H59M59.999999999999S'", Type: FilterTokenDuration},
+		// Note the duration token is extracted.
+		&Token{Value: "P12DT23H59M59.999999999999S", Type: FilterTokenDuration},
 	}
 	output, err := tokenizer.Tokenize(input)
 	if err != nil {
@@ -179,7 +180,7 @@ func TestFilterDurationWithoutType(t *testing.T) {
 	expect := []*Token{
 		&Token{Value: "Task", Type: FilterTokenLiteral},
 		&Token{Value: "eq", Type: FilterTokenLogical},
-		&Token{Value: "'P12DT23H59M59.999999999999S'", Type: FilterTokenDuration},
+		&Token{Value: "P12DT23H59M59.999999999999S", Type: FilterTokenDuration},
 	}
 	output, err := tokenizer.Tokenize(input)
 	if err != nil {
