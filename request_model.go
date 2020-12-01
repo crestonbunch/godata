@@ -15,8 +15,10 @@ const (
 	RequestKindCount
 )
 
+type SemanticType int
+
 const (
-	SemanticTypeUnknown int = iota
+	SemanticTypeUnknown SemanticType = iota
 	SemanticTypeEntity
 	SemanticTypeEntitySet
 	SemanticTypeDerivedEntity
@@ -43,7 +45,7 @@ type GoDataSegment struct {
 	RawValue string
 
 	// The kind of resource being pointed at by this segment
-	SemanticType int
+	SemanticType SemanticType
 
 	// A pointer to the metadata type this object represents, as defined by a
 	// particular service

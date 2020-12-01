@@ -162,7 +162,7 @@ func ParseExpandOption(queue *tokenQueue, item *ExpandItem) error {
 		return BadRequestError("Invalid expand clause.")
 	}
 	queue.Dequeue() // drop the '=' from the front of the queue
-	body := queue.String()
+	body := queue.GetValue()
 
 	if head == "$filter" {
 		filter, err := ParseFilterString(body)
