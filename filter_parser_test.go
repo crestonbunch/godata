@@ -998,6 +998,10 @@ func TestValidFilterSyntax(t *testing.T) {
 		"not endswith(Name,'ilk')",
 		"Name eq 'Milk' or Price lt 2.55",
 		"City eq 'Dallas' or City eq 'Houston'",
+		// Nested properties
+		"Product/Name eq 'Milk'",
+		"Region/Product/Name eq 'Milk'",
+		"Country/Region/Product/Name eq 'Milk'",
 		//"style has Sales.Pattern'Yellow'", // TODO
 		// Arithmetic operators
 		"Price add 2.45 eq 5.00",
@@ -1382,14 +1386,55 @@ func TestNestedPath(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if tree.Token.Value != "eq" {
-		t.Error("Root is '" + tree.Token.Value + "' not 'eq'")
+
+	var expect []expectedParseNode = []expectedParseNode{
+		{"eq", 0},
+		{"/", 1},
+		{"Address", 2},
+		{"City", 2},
+		{"'Redmond'", 1},
 	}
-	if tree.Children[0].Token.Value != "/" {
-		t.Error("First child is \"" + tree.Children[0].Token.Value + "\", not '/'")
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
-	if tree.Children[1].Token.Value != "'Redmond'" {
-		t.Error("First child is \"" + tree.Children[1].Token.Value + "\", not 'Redmond'")
+}
+
+func TestMultipleNestedPath(t *testing.T) {
+	input := "Product/Address/City eq 'Redmond'"
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var expect []expectedParseNode = []expectedParseNode{
+		{"eq", 0},
+		{"/", 1},
+		{"/", 2},
+		{"Product", 3},
+		{"Address", 3},
+		{"City", 2},
+		{"'Redmond'", 1},
+	}
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
 
@@ -1632,7 +1677,7 @@ func TestGeoFunctions(t *testing.T) {
 	}
 }
 
-func TestLambda1(t *testing.T) {
+func TestLambdaAny(t *testing.T) {
 	input := "Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')"
 	tokens, err := GlobalFilterTokenizer.Tokenize(input)
 	if err != nil {
@@ -1675,6 +1720,48 @@ func TestLambda1(t *testing.T) {
 		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
 	}
 }
+
+// TestLambdaAnyNested validates the any() lambda function with multiple nested properties.
+func TestLambdaAnyNested(t *testing.T) {
+	input := "Config/any(var:var/Config/Priority eq 123)"
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Config", 1},
+		{"any", 1},
+		{":", 2},
+		{"var", 3},
+		{"eq", 3},
+		{"/", 4},
+		{"/", 5},
+		{"var", 6},
+		{"Config", 6},
+		{"Priority", 5},
+		{"123", 4},
+	}
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
 func TestLambda2(t *testing.T) {
 	input := "Tags/any(var:var/Key eq 'Site' and var/Value eq 'London' or Price gt 1.0)"
 	tokens, err := GlobalFilterTokenizer.Tokenize(input)
