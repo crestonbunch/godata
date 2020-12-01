@@ -928,8 +928,10 @@ func TestValidFilterSyntax(t *testing.T) {
 		"startswith(CompanyName,'Alfr')",
 		"length(CompanyName) eq 19",
 		"indexof(CompanyName,'lfreds') eq 1",
-		"substring(CompanyName,1) eq 'lfreds Futterkiste'",
-		"substring(CompanyName,1,2) eq 'lf'", // substring with 3 arguments.
+		"substring(CompanyName,1) eq 'lfreds Futterkiste'", // substring() with 2 arguments.
+		"'lfreds Futterkiste' eq substring(CompanyName,1)", // Same as above, but order of operands is reversed.
+		"substring(CompanyName,1,2) eq 'lf'",               // substring() with 3 arguments.
+		"'lf' eq substring(CompanyName,1,2) ",              // Same as above, but order of operands is reversed.
 		"substringof('Alfreds', CompanyName) eq true",
 		"tolower(CompanyName) eq 'alfreds futterkiste'",
 		"toupper(CompanyName) eq 'ALFREDS FUTTERKISTE'",
@@ -981,6 +983,8 @@ func TestValidFilterSyntax(t *testing.T) {
 		"geo.intersects(Position,TargetArea)",
 		"GEO.INTERSECTS(Position,TargetArea)", // functions are case insensitive in ODATA 4.0.1
 		// Logical operators
+		"'Milk' eq 'Milk'",  // Compare two literals
+		"'Water' ne 'Milk'", // Compare two literals
 		"Name eq 'Milk'",
 		"Name EQ 'Milk'", // operators are case insensitive in ODATA 4.0.1
 		"Name ne 'Milk'",
@@ -989,6 +993,7 @@ func TestValidFilterSyntax(t *testing.T) {
 		"Name ge 'Milk'",
 		"Name lt 'Milk'",
 		"Name le 'Milk'",
+		"Name eq Name", // parameter equals to itself
 		"Name eq 'Milk' and Price lt 2.55",
 		"not endswith(Name,'ilk')",
 		"Name eq 'Milk' or Price lt 2.55",
@@ -1025,9 +1030,10 @@ func TestValidFilterSyntax(t *testing.T) {
 		"not (((City eq 'Dallas')))",
 		"not(S1 eq 'foo')",
 		// Lambda operators
-		"Tags/any()",
-		"Tags/any(var:var eq 'Site')",
-		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')",
+		"Tags/any()",                    // The any operator without an argument returns true if the collection is not empty
+		"Tags/any(tag:tag eq 'London')", // 'Tags' is array of strings
+		"Tags/any(tag:tag eq 'London' or tag eq 'Berlin')",          // 'Tags' is array of strings
+		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')", // 'Tags' is array of {"Key": "abc", "Value": "def"}
 		"Tags/ANY(var:var/Key eq 'Site' AND var/Value eq 'London')",
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') and not (City in ('Dallas'))",
 		"Tags/all(var:var/Key eq 'Site' and var/Value eq 'London')",

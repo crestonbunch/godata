@@ -219,6 +219,7 @@ func (p *Parser) DefineOperator(token string, operands, assoc, precedence int) *
 }
 
 // DefineFunction adds a function to the language
+// params is the number of parameters this function accepts
 func (p *Parser) DefineFunction(token string, params []int) {
 	sort.Sort(sort.Reverse(sort.IntSlice(params)))
 	p.Functions[token] = &Function{token, params}
