@@ -21,8 +21,9 @@ const (
 	FilterTokenTime
 	FilterTokenDateTime
 	FilterTokenBoolean
-	FilterTokenLiteral // 20
-	FilterTokenDuration
+	FilterTokenLiteral  // 20
+	FilterTokenDuration // duration      = [ "duration" ] SQUOTE durationValue SQUOTE
+	FilterTokenGuid
 )
 
 var GlobalFilterTokenizer = FilterTokenizer()
@@ -51,12 +52,24 @@ func ParseFilterString(filter string) (*GoDataFilterQuery, error) {
 	return &GoDataFilterQuery{tree, filter}, nil
 }
 
+// FilterTokenDurationRe is a regex for a token of type duration.
+// The token value is set to the ISO 8601 string inside the single quotes
+// For example, if the input data is duration'PT2H', then the token value is set to PT2H without quotes.
+const FilterTokenDurationRe = `^(duration)?'(?P<subtoken>-?P((([0-9]+Y([0-9]+M)?([0-9]+D)?|([0-9]+M)([0-9]+D)?|([0-9]+D))(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S)))?)|(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S)))))'`
+
 // FilterTokenizer creates a tokenizer capable of tokenizing filter statements
 // 4.01 Services MUST support case-insensitive operator names.
 // See https://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part2-url-conventions.html#_Toc31360955
 func FilterTokenizer() *Tokenizer {
 	t := Tokenizer{}
-	t.Add(`^-?P((([0-9]+Y([0-9]+M)?([0-9]+D)?|([0-9]+M)([0-9]+D)?|([0-9]+D))(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S)))?)|(T(([0-9]+H)([0-9]+M)?([0-9]+(\.[0-9]+)?S)?|([0-9]+M)([0-9]+(\.[0-9]+)?S)?|([0-9]+(\.[0-9]+)?S))))`, FilterTokenDuration)
+	// guidValue = 8HEXDIG "-" 4HEXDIG "-" 4HEXDIG "-" 4HEXDIG "-" 12HEXDIG
+	t.Add(`^[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}`, FilterTokenGuid)
+	// duration      = [ "duration" ] SQUOTE durationValue SQUOTE
+	// durationValue = [ SIGN ] "P" [ 1*DIGIT "D" ] [ "T" [ 1*DIGIT "H" ] [ 1*DIGIT "M" ] [ 1*DIGIT [ "." 1*DIGIT ] "S" ] ]
+	// Duration literals in OData 4.0 required prefixing with “duration”.
+	// In OData 4.01, services MUST support duration and enumeration literals with or without the type prefix.
+	// OData clients that want to operate across OData 4.0 and OData 4.01 services should always include the prefix for duration and enumeration types.
+	t.Add(FilterTokenDurationRe, FilterTokenDuration)
 	t.Add("^[0-9]{4,4}-[0-9]{2,2}-[0-9]{2,2}T[0-9]{2,2}:[0-9]{2,2}(:[0-9]{2,2}(.[0-9]+)?)?(Z|[+-][0-9]{2,2}:[0-9]{2,2})", FilterTokenDateTime)
 	t.Add("^-?[0-9]{4,4}-[0-9]{2,2}-[0-9]{2,2}", FilterTokenDate)
 	t.Add("^[0-9]{2,2}:[0-9]{2,2}(:[0-9]{2,2}(.[0-9]+)?)?", FilterTokenTime)
@@ -73,15 +86,27 @@ func FilterTokenizer() *Tokenizer {
 	// E.g. ABNF for 'geo.distance':
 	// distanceMethodCallExpr   = "geo.distance"   OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
 	t.Add("(?i)^(?P<token>(geo.distance|geo.intersects|geo.length))[\\s(]", FilterTokenFunc)
-	// Functions must be followed by a open parenthesis.
+	// According to ODATA ABNF notation, functions must be followed by a open parenthesis with no space
+	// between the function name and the open parenthesis.
+	// However, we are leniently allowing space characters between the function and the open parenthesis.
+	// TODO make leniency configurable.
 	// E.g. ABNF for 'indexof':
 	// indexOfMethodCallExpr    = "indexof"    OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
 	t.Add("(?i)^(?P<token>(substringof|substring|length|indexof|exists))[\\s(]", FilterTokenFunc)
 	// Logical operators must be followed by a space character.
-	t.Add("(?i)^(?P<token>(eq|ne|gt|ge|lt|le|and|or|not|has|in))\\s", FilterTokenLogical)
+	// However, in practice user have written requests such as not(City eq 'Seattle')
+	// We are leniently allowing space characters between the operator name and the open parenthesis.
+	// TODO make leniency configurable.
+	// Example:
+	// notExpr = "not" RWS boolCommonExpr
+	t.Add("(?i)^(?P<token>(eq|ne|gt|ge|lt|le|and|or|not|has|in))[\\s(]", FilterTokenLogical)
 	// Arithmetic operators must be followed by a space character.
 	t.Add("(?i)^(?P<token>(add|sub|mul|divby|div|mod))\\s", FilterTokenOp)
-	// Functions must be followed by a open parenthesis.
+	// According to ODATA ABNF notation, functions must be followed by a open parenthesis with no space
+	// between the function name and the open parenthesis.
+	// However, we are leniently allowing space characters between the function and the open parenthesis.
+	// TODO make leniency configurable.
+	//
 	// E.g. ABNF for 'contains':
 	// containsMethodCallExpr   = "contains"   OPEN BWS commonExpr BWS COMMA BWS commonExpr BWS CLOSE
 	t.Add("(?i)^(?P<token>(contains|endswith|startswith|tolower|toupper|"+
@@ -106,27 +131,29 @@ func FilterTokenizer() *Tokenizer {
 
 func FilterParser() *Parser {
 	parser := EmptyParser()
-	parser.DefineOperator("/", 2, OpAssociationLeft, 9, false)
-	parser.DefineOperator("has", 2, OpAssociationLeft, 9, false)
-	parser.DefineOperator("-", 1, OpAssociationNone, 8, false)
-	parser.DefineOperator("not", 1, OpAssociationLeft, 8, false)
-	parser.DefineOperator("cast", 2, OpAssociationNone, 8, false)
-	parser.DefineOperator("mul", 2, OpAssociationNone, 7, false)
-	parser.DefineOperator("div", 2, OpAssociationNone, 7, false)   // Division
-	parser.DefineOperator("divby", 2, OpAssociationNone, 7, false) // Decimal Division
-	parser.DefineOperator("mod", 2, OpAssociationNone, 7, false)
-	parser.DefineOperator("add", 2, OpAssociationNone, 6, false)
-	parser.DefineOperator("sub", 2, OpAssociationNone, 6, false)
-	parser.DefineOperator("gt", 2, OpAssociationLeft, 5, false)
-	parser.DefineOperator("ge", 2, OpAssociationLeft, 5, false)
-	parser.DefineOperator("lt", 2, OpAssociationLeft, 5, false)
-	parser.DefineOperator("le", 2, OpAssociationLeft, 5, false)
-	parser.DefineOperator("eq", 2, OpAssociationLeft, 4, false)
-	parser.DefineOperator("ne", 2, OpAssociationLeft, 4, false)
-	parser.DefineOperator("in", 2, OpAssociationLeft, 4, true) // 'in' operator takes a literal list.
-	parser.DefineOperator("and", 2, OpAssociationLeft, 3, false)
-	parser.DefineOperator("or", 2, OpAssociationLeft, 2, false)
-	parser.DefineOperator(":", 2, OpAssociationLeft, 1, false)
+	parser.DefineOperator("/", 2, OpAssociationLeft, 9)
+	parser.DefineOperator("has", 2, OpAssociationLeft, 9)
+	// 'in' operator takes a literal list.
+	// City in ('Seattle') needs to be interpreted as a list expression, not a paren expression.
+	parser.DefineOperator("in", 2, OpAssociationLeft, 9).SetPreferListExpr(true)
+	parser.DefineOperator("-", 1, OpAssociationNone, 8)
+	parser.DefineOperator("not", 1, OpAssociationLeft, 8)
+	parser.DefineOperator("cast", 2, OpAssociationNone, 8)
+	parser.DefineOperator("mul", 2, OpAssociationNone, 7)
+	parser.DefineOperator("div", 2, OpAssociationNone, 7)   // Division
+	parser.DefineOperator("divby", 2, OpAssociationNone, 7) // Decimal Division
+	parser.DefineOperator("mod", 2, OpAssociationNone, 7)
+	parser.DefineOperator("add", 2, OpAssociationNone, 6)
+	parser.DefineOperator("sub", 2, OpAssociationNone, 6)
+	parser.DefineOperator("gt", 2, OpAssociationLeft, 5)
+	parser.DefineOperator("ge", 2, OpAssociationLeft, 5)
+	parser.DefineOperator("lt", 2, OpAssociationLeft, 5)
+	parser.DefineOperator("le", 2, OpAssociationLeft, 5)
+	parser.DefineOperator("eq", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("ne", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("and", 2, OpAssociationLeft, 3)
+	parser.DefineOperator("or", 2, OpAssociationLeft, 2)
+	parser.DefineOperator(":", 2, OpAssociationLeft, 1)
 	parser.DefineFunction("contains", []int{2})
 	parser.DefineFunction("endswith", []int{2})
 	parser.DefineFunction("startswith", []int{2})
@@ -161,7 +188,7 @@ func FilterParser() *Parser {
 	parser.DefineFunction("geo.distance", []int{2})
 	parser.DefineFunction("geo.intersects", []int{2})
 	parser.DefineFunction("geo.length", []int{1})
-	parser.DefineFunction("any", []int{0, 1}) // any function can take zero or one argument.
+	parser.DefineFunction("any", []int{0, 1}) // 'any' can take either zero or one argument.
 	parser.DefineFunction("all", []int{1})
 
 	return parser
