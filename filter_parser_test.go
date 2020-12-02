@@ -55,11 +55,11 @@ func TestFilterAnyArrayOfObjects(t *testing.T) {
 	input := "Tags/any(d:d/Key eq 'Site' and d/Value lt 10)"
 	expect := []*Token{
 		&Token{Value: "Tags", Type: FilterTokenLiteral},
-		&Token{Value: "/", Type: FilterTokenNav},
+		&Token{Value: "/", Type: FilterTokenOp},
 		&Token{Value: "any", Type: FilterTokenLambda},
 		&Token{Value: "(", Type: FilterTokenOpenParen},
 		&Token{Value: "d", Type: FilterTokenLiteral},
-		&Token{Value: ":", Type: FilterTokenColon},
+		&Token{Value: ",", Type: FilterTokenColon}, // ':' is replaced by ',' which is the function argument separator.
 		&Token{Value: "d", Type: FilterTokenLiteral},
 		&Token{Value: "/", Type: FilterTokenNav},
 		&Token{Value: "Key", Type: FilterTokenLiteral},
@@ -90,11 +90,11 @@ func TestFilterAnyArrayOfPrimitiveTypes(t *testing.T) {
 	{
 		expect := []*Token{
 			&Token{Value: "Tags", Type: FilterTokenLiteral},
-			&Token{Value: "/", Type: FilterTokenNav},
+			&Token{Value: "/", Type: FilterTokenOp},
 			&Token{Value: "any", Type: FilterTokenLambda},
 			&Token{Value: "(", Type: FilterTokenOpenParen},
 			&Token{Value: "d", Type: FilterTokenLiteral},
-			&Token{Value: ":", Type: FilterTokenColon},
+			&Token{Value: ",", Type: FilterTokenColon},
 			&Token{Value: "d", Type: FilterTokenLiteral},
 			&Token{Value: "eq", Type: FilterTokenLogical},
 			&Token{Value: "'Site'", Type: FilterTokenString},
@@ -119,11 +119,10 @@ func TestFilterAnyArrayOfPrimitiveTypes(t *testing.T) {
 		{"/", 0},
 		{"Tags", 1},
 		{"any", 1},
-		{":", 2},
+		{"d", 2},
+		{"eq", 2},
 		{"d", 3},
-		{"eq", 3},
-		{"d", 4},
-		{"'Site'", 4},
+		{"'Site'", 3},
 	}
 	pos := 0
 	err = CompareTree(q.Tree, expect, &pos, 0)
@@ -199,7 +198,7 @@ func TestFilterAnyWithNoArgs(t *testing.T) {
 	{
 		expect := []*Token{
 			&Token{Value: "Tags", Type: FilterTokenLiteral},
-			&Token{Value: "/", Type: FilterTokenNav},
+			&Token{Value: "/", Type: FilterTokenOp},
 			&Token{Value: "any", Type: FilterTokenLambda},
 			&Token{Value: "(", Type: FilterTokenOpenParen},
 			&Token{Value: ")", Type: FilterTokenCloseParen},
@@ -726,11 +725,11 @@ func TestFilterAll(t *testing.T) {
 	input := "Tags/all(d:d/Key eq 'Site')"
 	expect := []*Token{
 		&Token{Value: "Tags", Type: FilterTokenLiteral},
-		&Token{Value: "/", Type: FilterTokenNav},
+		&Token{Value: "/", Type: FilterTokenOp},
 		&Token{Value: "all", Type: FilterTokenLambda},
 		&Token{Value: "(", Type: FilterTokenOpenParen},
 		&Token{Value: "d", Type: FilterTokenLiteral},
-		&Token{Value: ":", Type: FilterTokenColon},
+		&Token{Value: ",", Type: FilterTokenColon},
 		&Token{Value: "d", Type: FilterTokenLiteral},
 		&Token{Value: "/", Type: FilterTokenNav},
 		&Token{Value: "Key", Type: FilterTokenLiteral},
@@ -1278,18 +1277,18 @@ func BenchmarkFilterTokenizer(b *testing.B) {
 }
 
 // Check if two slices of tokens are the same.
-func CompareTokens(a, b []*Token) (bool, error) {
-	if len(a) != len(b) {
-		return false, fmt.Errorf("Different lengths. Expected %d, Got %d", len(a), len(b))
+func CompareTokens(expected, actual []*Token) (bool, error) {
+	if len(expected) != len(actual) {
+		return false, fmt.Errorf("Different lengths. Expected %d, Got %d", len(expected), len(actual))
 	}
-	for i := range a {
-		if a[i].Type != b[i].Type {
-			return false, fmt.Errorf("Different token types at index %d. Type: %v != %v. Value: %v",
-				i, a[i].Type, b[i].Type, a[i].Value)
+	for i := range expected {
+		if expected[i].Type != actual[i].Type {
+			return false, fmt.Errorf("Different token types at index %d. Expected %v, Got %v. Value: %v",
+				i, expected[i].Type, actual[i].Type, expected[i].Value)
 		}
-		if a[i].Value != b[i].Value {
-			return false, fmt.Errorf("Different token values at index %d. Value: %v != %v",
-				i, a[i].Value, b[i].Value)
+		if expected[i].Value != actual[i].Value {
+			return false, fmt.Errorf("Different token values at index %d. Expected %v, Got %v",
+				i, expected[i].Value, actual[i].Value)
 		}
 	}
 	return true, nil
@@ -1678,6 +1677,43 @@ func TestGeoFunctions(t *testing.T) {
 }
 
 func TestLambdaAny(t *testing.T) {
+	input := "Tags/any(var:var/Key eq 'Site')"
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Tags", 1},
+		{"any", 1},
+		{"var", 2},
+		{"eq", 2},
+		{"/", 3},
+		{"var", 4},
+		{"Key", 4},
+		{"'Site'", 3},
+	}
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
+func TestLambdaAnyAnd(t *testing.T) {
 	input := "Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')"
 	tokens, err := GlobalFilterTokenizer.Tokenize(input)
 	if err != nil {
@@ -1699,19 +1735,18 @@ func TestLambdaAny(t *testing.T) {
 		{"/", 0},
 		{"Tags", 1},
 		{"any", 1},
-		{":", 2},
-		{"var", 3},
-		{"and", 3},
-		{"eq", 4},
-		{"/", 5},
-		{"var", 6},
-		{"Key", 6},
-		{"'Site'", 5},
-		{"eq", 4},
-		{"/", 5},
-		{"var", 6},
-		{"Value", 6},
-		{"'London'", 5},
+		{"var", 2},
+		{"and", 2},
+		{"eq", 3},
+		{"/", 4},
+		{"var", 5},
+		{"Key", 5},
+		{"'Site'", 4},
+		{"eq", 3},
+		{"/", 4},
+		{"var", 5},
+		{"Value", 5},
+		{"'London'", 4},
 	}
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
@@ -1721,8 +1756,42 @@ func TestLambdaAny(t *testing.T) {
 	}
 }
 
+func TestLambdaNestedAny(t *testing.T) {
+	input := "Enabled/any(t:t/Value eq Config/any(c:c/AdminState eq 'TRUE'))"
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Enabled", 1},
+		{"any", 1},
+		{"t", 2},
+		{"eq", 2},
+		{"/", 3},
+		{"t", 4},
+		{"Value", 4},
+		{"/", 3},
+		{"Config", 4},
+		{"any", 4},
+		{"c", 5},
+		{"eq", 5},
+		{"/", 6},
+		{"c", 7},
+		{"AdminState", 7},
+		{"'TRUE'", 6},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		printTree(q.Tree)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
 // TestLambdaAnyNested validates the any() lambda function with multiple nested properties.
-func TestLambdaAnyNested(t *testing.T) {
+func TestLambdaAnyNestedProperties(t *testing.T) {
 	input := "Config/any(var:var/Config/Priority eq 123)"
 	tokens, err := GlobalFilterTokenizer.Tokenize(input)
 	if err != nil {
@@ -1744,15 +1813,14 @@ func TestLambdaAnyNested(t *testing.T) {
 		{"/", 0},
 		{"Config", 1},
 		{"any", 1},
-		{":", 2},
-		{"var", 3},
-		{"eq", 3},
+		{"var", 2},
+		{"eq", 2},
+		{"/", 3},
 		{"/", 4},
-		{"/", 5},
-		{"var", 6},
-		{"Config", 6},
-		{"Priority", 5},
-		{"123", 4},
+		{"var", 5},
+		{"Config", 5},
+		{"Priority", 4},
+		{"123", 3},
 	}
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
@@ -1784,23 +1852,22 @@ func TestLambda2(t *testing.T) {
 		{"/", 0},
 		{"Tags", 1},
 		{"any", 1},
-		{":", 2},
-		{"var", 3},
-		{"or", 3},
-		{"and", 4},
-		{"eq", 5},
-		{"/", 6},
-		{"var", 7},
-		{"Key", 7},
-		{"'Site'", 6},
-		{"eq", 5},
-		{"/", 6},
-		{"var", 7},
-		{"Value", 7},
-		{"'London'", 6},
-		{"gt", 4},
-		{"Price", 5},
-		{"1.0", 5},
+		{"var", 2},
+		{"or", 2},
+		{"and", 3},
+		{"eq", 4},
+		{"/", 5},
+		{"var", 6},
+		{"Key", 6},
+		{"'Site'", 5},
+		{"eq", 4},
+		{"/", 5},
+		{"var", 6},
+		{"Value", 6},
+		{"'London'", 5},
+		{"gt", 3},
+		{"Price", 4},
+		{"1.0", 4},
 	}
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
@@ -1832,29 +1899,28 @@ func TestLambda3(t *testing.T) {
 		{"/", 0},
 		{"Tags", 1},
 		{"any", 1},
-		{":", 2},
-		{"var", 3},
+		{"var", 2},
+		{"or", 2},
 		{"or", 3},
-		{"or", 4},
-		{"and", 5},
-		{"eq", 6},
-		{"/", 7},
-		{"var", 8},
-		{"Key", 8},
-		{"'Site'", 7},
-		{"eq", 6},
-		{"/", 7},
-		{"var", 8},
-		{"Value", 8},
-		{"'London'", 7},
-		{"gt", 5},
-		{"Price", 6},
-		{"1.0", 6},
-		{"contains", 4},
-		{"/", 5},
-		{"var", 6},
-		{"Value", 6},
-		{"'Smith'", 5},
+		{"and", 4},
+		{"eq", 5},
+		{"/", 6},
+		{"var", 7},
+		{"Key", 7},
+		{"'Site'", 6},
+		{"eq", 5},
+		{"/", 6},
+		{"var", 7},
+		{"Value", 7},
+		{"'London'", 6},
+		{"gt", 4},
+		{"Price", 5},
+		{"1.0", 5},
+		{"contains", 3},
+		{"/", 4},
+		{"var", 5},
+		{"Value", 5},
+		{"'Smith'", 4},
 	}
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)

@@ -4,8 +4,8 @@ const (
 	FilterTokenOpenParen int = iota
 	FilterTokenCloseParen
 	FilterTokenWhitespace
-	FilterTokenNav
-	FilterTokenColon // for 'any' and 'all' lambda operators
+	FilterTokenNav   // Property navigation
+	FilterTokenColon // Function arg separator for 'any(v:boolExpr)' and 'all(v:boolExpr)' lambda operators
 	FilterTokenComma // 5
 	FilterTokenLogical
 	FilterTokenOp
@@ -75,9 +75,10 @@ func FilterTokenizer() *Tokenizer {
 	t.Add("^[0-9]{2,2}:[0-9]{2,2}(:[0-9]{2,2}(.[0-9]+)?)?", FilterTokenTime)
 	t.Add("^\\(", FilterTokenOpenParen)
 	t.Add("^\\)", FilterTokenCloseParen)
-	t.Add("^/", FilterTokenNav)
-	t.Add("^:", FilterTokenColon)
-	t.Add("^,", FilterTokenComma)
+	t.Add("^(?P<token>/)(?i)(any|all)", FilterTokenOp)                                     // '/' as a token between a collection expression and a lambda function any() or all()
+	t.Add("^/", FilterTokenNav)                                                            // '/' as a token for property navigation.
+	t.AddWithSubstituteFunc("^:", FilterTokenColon, func(in string) string { return "," }) // Function arg separator for lambda functions (any, all)
+	t.Add("^,", FilterTokenComma)                                                          // Default arg separator for functions
 	// Per ODATA ABNF grammar, functions must be followed by a open parenthesis.
 	// This implementation is a bit more lenient and allows space character between
 	// the function name and the open parenthesis.
@@ -131,29 +132,28 @@ func FilterTokenizer() *Tokenizer {
 
 func FilterParser() *Parser {
 	parser := EmptyParser()
-	parser.DefineOperator("/", 2, OpAssociationLeft, 9)
-	parser.DefineOperator("has", 2, OpAssociationLeft, 9)
+	parser.DefineOperator("/", 2, OpAssociationLeft, 8) // Note: '/' is used as a property navigator and between a collExpr and lambda function.
+	parser.DefineOperator("has", 2, OpAssociationLeft, 8)
 	// 'in' operator takes a literal list.
 	// City in ('Seattle') needs to be interpreted as a list expression, not a paren expression.
-	parser.DefineOperator("in", 2, OpAssociationLeft, 9).SetPreferListExpr(true)
-	parser.DefineOperator("-", 1, OpAssociationNone, 8)
-	parser.DefineOperator("not", 1, OpAssociationLeft, 8)
-	parser.DefineOperator("cast", 2, OpAssociationNone, 8)
-	parser.DefineOperator("mul", 2, OpAssociationNone, 7)
-	parser.DefineOperator("div", 2, OpAssociationNone, 7)   // Division
-	parser.DefineOperator("divby", 2, OpAssociationNone, 7) // Decimal Division
-	parser.DefineOperator("mod", 2, OpAssociationNone, 7)
-	parser.DefineOperator("add", 2, OpAssociationNone, 6)
-	parser.DefineOperator("sub", 2, OpAssociationNone, 6)
-	parser.DefineOperator("gt", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("ge", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("lt", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("le", 2, OpAssociationLeft, 5)
-	parser.DefineOperator("eq", 2, OpAssociationLeft, 4)
-	parser.DefineOperator("ne", 2, OpAssociationLeft, 4)
-	parser.DefineOperator("and", 2, OpAssociationLeft, 3)
-	parser.DefineOperator("or", 2, OpAssociationLeft, 2)
-	parser.DefineOperator(":", 2, OpAssociationLeft, 1)
+	parser.DefineOperator("in", 2, OpAssociationLeft, 8).SetPreferListExpr(true)
+	parser.DefineOperator("-", 1, OpAssociationNone, 7)
+	parser.DefineOperator("not", 1, OpAssociationLeft, 7)
+	parser.DefineOperator("cast", 2, OpAssociationNone, 7)
+	parser.DefineOperator("mul", 2, OpAssociationNone, 6)
+	parser.DefineOperator("div", 2, OpAssociationNone, 6)   // Division
+	parser.DefineOperator("divby", 2, OpAssociationNone, 6) // Decimal Division
+	parser.DefineOperator("mod", 2, OpAssociationNone, 6)
+	parser.DefineOperator("add", 2, OpAssociationNone, 5)
+	parser.DefineOperator("sub", 2, OpAssociationNone, 5)
+	parser.DefineOperator("gt", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("ge", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("lt", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("le", 2, OpAssociationLeft, 4)
+	parser.DefineOperator("eq", 2, OpAssociationLeft, 3)
+	parser.DefineOperator("ne", 2, OpAssociationLeft, 3)
+	parser.DefineOperator("and", 2, OpAssociationLeft, 2)
+	parser.DefineOperator("or", 2, OpAssociationLeft, 1)
 	parser.DefineFunction("contains", []int{2})
 	parser.DefineFunction("endswith", []int{2})
 	parser.DefineFunction("startswith", []int{2})
@@ -188,8 +188,8 @@ func FilterParser() *Parser {
 	parser.DefineFunction("geo.distance", []int{2})
 	parser.DefineFunction("geo.intersects", []int{2})
 	parser.DefineFunction("geo.length", []int{1})
-	parser.DefineFunction("any", []int{0, 1}) // 'any' can take either zero or one argument.
-	parser.DefineFunction("all", []int{1})
+	parser.DefineFunction("any", []int{0, 2}) // 'any' can take either zero or one argument.
+	parser.DefineFunction("all", []int{2})
 
 	return parser
 }
