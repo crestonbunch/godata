@@ -132,6 +132,88 @@ func TestFilterAnyArrayOfPrimitiveTypes(t *testing.T) {
 	}
 }
 
+// geographyPolygon   = geographyPrefix SQUOTE fullPolygonLiteral SQUOTE
+// geographyPrefix = "geography"
+// fullPolygonLiteral = sridLiteral polygonLiteral
+// sridLiteral      = "SRID" EQ 1*5DIGIT SEMI
+// polygonLiteral     = "Polygon" polygonData
+// polygonData        = OPEN ringLiteral *( COMMA ringLiteral ) CLOSE
+// positionLiteral  = doubleValue SP doubleValue  ; longitude, then latitude
+/*
+func TestFilterGeographyPolygon(t *testing.T) {
+	input := "geo.intersects(location, geography'SRID=0;Polygon(-122.031577 47.578581, -122.031577 47.678581, -122.131577 47.678581, -122.031577 47.578581)')"
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"geo.intersects", 0},
+		{"location", 1},
+		{"geography'SRID=0;Polygon(-122.031577 47.578581, -122.031577 47.678581, -122.131577 47.678581, -122.031577 47.578581)'", 1},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		fmt.Printf("Got tree:\n%v\n", q.Tree.String())
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+*/
+
+// TestFilterAnyGeography matches documents where any of the geo coordinates in the locations field is within the given polygon.
+/*
+func TestFilterAnyGeography(t *testing.T) {
+	input := "locations/any(loc: geo.intersects(loc, geography'Polygon((-122.031577 47.578581, -122.031577 47.678581, -122.131577 47.678581, -122.031577 47.578581))'))"
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Tags", 1},
+		{"any", 1},
+		{"d", 2},
+		{"or", 2},
+		{"or", 3},
+		{"or", 4},
+		{"eq", 5},
+		{"d", 6},
+		{"'Site'", 6},
+		{"eq", 5},
+		{"'Environment'", 6},
+		{"/", 6},
+		{"d", 7},
+		{"Key", 7},
+		{"eq", 4},
+		{"/", 5},
+		{"/", 6},
+		{"d", 7},
+		{"d", 7},
+		{"d", 6},
+		{"123456", 5},
+		{"eq", 3},
+		{"concat", 4},
+		{"/", 5},
+		{"d", 6},
+		{"FirstName", 6},
+		{"/", 5},
+		{"d", 6},
+		{"LastName", 6},
+		{"/", 4},
+		{"$it", 5},
+		{"FullName", 5},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		fmt.Printf("Got tree:\n%v\n", q.Tree.String())
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+*/
+
 func TestFilterAnyMixedQuery(t *testing.T) {
 	/*
 		{
@@ -144,6 +226,12 @@ func TestFilterAnyMixedQuery(t *testing.T) {
 			"FullName": "BobSmith"
 		}
 	*/
+	// The argument of a lambda operator is a case-sensitive lambda variable name followed by a colon (:) and a Boolean expression that
+	// uses the lambda variable name to refer to properties of members of the collection identified by the navigation path.
+	// If the name chosen for the lambda variable matches a property name of the current resource referenced by the resource path, the lambda variable takes precedence.
+	// Clients can prefix properties of the current resource referenced by the resource path with $it.
+	// Other path expressions in the Boolean expression neither prefixed with the lambda variable nor $it are evaluated in the scope of
+	// the collection instances at the origin of the navigation path prepended to the lambda operator.
 	input := "Tags/any(d:d eq 'Site' or 'Environment' eq d/Key or d/d/d eq 123456 or concat(d/FirstName, d/LastName) eq $it/FullName)"
 	q, err := ParseFilterString(input)
 	if err != nil {

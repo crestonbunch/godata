@@ -412,7 +412,9 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 				}
 			default:
 				if isCurrentTokenLiteral {
-					// Cannot have two consecutive literal values.
+					// In most cases, it is invalid to have two consecutive literal values.
+					// TODO: The exception is for a positionLiteral:
+					//    positionLiteral  = doubleValue SP doubleValue  ; longitude, then latitude
 					return nil, BadRequestError("Request cannot include two consecutive literal values")
 				}
 				isCurrentTokenLiteral = true
