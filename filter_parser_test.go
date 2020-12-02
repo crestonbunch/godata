@@ -132,6 +132,67 @@ func TestFilterAnyArrayOfPrimitiveTypes(t *testing.T) {
 	}
 }
 
+func TestFilterAnyMixedQuery(t *testing.T) {
+	/*
+		{
+			"Tags": [
+				"Site",
+				{ "Key": "Environment" },
+				{ "d" : { "d": 123456 }},
+				{ "FirstName" : "Bob", "LastName": "Smith"}
+			],
+			"FullName": "BobSmith"
+		}
+	*/
+	input := "Tags/any(d:d eq 'Site' or 'Environment' eq d/Key or d/d/d eq 123456 or concat(d/FirstName, d/LastName) eq $it/FullName)"
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Tags", 1},
+		{"any", 1},
+		{"d", 2},
+		{"or", 2},
+		{"or", 3},
+		{"or", 4},
+		{"eq", 5},
+		{"d", 6},
+		{"'Site'", 6},
+		{"eq", 5},
+		{"'Environment'", 6},
+		{"/", 6},
+		{"d", 7},
+		{"Key", 7},
+		{"eq", 4},
+		{"/", 5},
+		{"/", 6},
+		{"d", 7},
+		{"d", 7},
+		{"d", 6},
+		{"123456", 5},
+		{"eq", 3},
+		{"concat", 4},
+		{"/", 5},
+		{"d", 6},
+		{"FirstName", 6},
+		{"/", 5},
+		{"d", 6},
+		{"LastName", 6},
+		{"/", 4},
+		{"$it", 5},
+		{"FullName", 5},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		fmt.Printf("Got tree:\n%v\n", q.Tree.String())
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
 func TestFilterGuid(t *testing.T) {
 	tokenizer := FilterTokenizer()
 	input := "GuidValue eq 01234567-89ab-cdef-0123-456789abcdef"
