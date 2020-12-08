@@ -294,6 +294,9 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 					o2, ok = p.Operators[stack.Peek().Value]
 				}
 			}
+			if o1.Operands == 1 { // not, -
+				stack.incrementListArgCount()
+			}
 			stack.Push(token)
 		} else {
 			switch token.Value {

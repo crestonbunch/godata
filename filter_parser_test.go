@@ -1224,6 +1224,7 @@ func TestValidFilterSyntax(t *testing.T) {
 		"Tags/ANY(var:var/Key eq 'Site' AND var/Value eq 'London')",
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') and not (City in ('Dallas'))",
 		"Tags/all(var:var/Key eq 'Site' and var/Value eq 'London')",
+		"Price/any(t:not (12345 eq t))",
 		// A long query.
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') or " +
 			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'Berlin') or " +
@@ -1888,6 +1889,60 @@ func TestLambdaAny(t *testing.T) {
 		{"var", 4},
 		{"Key", 4},
 		{"'Site'", 3},
+	}
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
+func TestLambdaAnyNot(t *testing.T) {
+	input := "Price/any(t:not (12345 eq t ))"
+
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	{
+		expect := []*Token{
+			&Token{Value: "Price", Type: FilterTokenLiteral},
+			&Token{Value: "t", Type: FilterTokenLiteral},
+			&Token{Value: "12345", Type: FilterTokenInteger},
+			&Token{Value: "t", Type: FilterTokenLiteral},
+			&Token{Value: "eq", Type: FilterTokenLogical},
+			&Token{Value: "not", Type: FilterTokenLogical},
+			&Token{Value: "2", Type: TokenTypeArgCount},
+			&Token{Value: "any", Type: FilterTokenLambda},
+			&Token{Value: "/", Type: FilterTokenOp},
+		}
+		var result bool
+		result, err = CompareQueue(expect, output)
+		if !result {
+			t.Error(err)
+		}
+	}
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Price", 1},
+		{"any", 1},
+		{"t", 2},
+		{"not", 2},
+		{"eq", 3},
+		{"12345", 4},
+		{"t", 4},
 	}
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
