@@ -8,7 +8,7 @@ const (
 	FilterTokenColon   // Function arg separator for 'any(v:boolExpr)' and 'all(v:boolExpr)' lambda operators
 	FilterTokenComma   // 5
 	FilterTokenLogical // eq|ne|gt|ge|lt|le|and|or|not|has|in
-	FilterTokenOp      // add|sub|mul|divby|div|mod
+	FilterTokenOp      // add|sub|mul|divby|div|mod and "/" token when used in lambda expression, e.g. tags/any()
 	FilterTokenFunc
 	FilterTokenLambda // any(), all() lambda functions
 	FilterTokenNull   // 10
