@@ -27,16 +27,24 @@ const TokenTypeListExpr int = -2
 
 const TokenListExpr = "list"
 
+// TokenComma is the default separator for function arguments.
+const (
+	TokenComma      = ","
+	TokenOpenParen  = "("
+	TokenCloseParen = ")"
+)
+
 type Tokenizer struct {
 	TokenMatchers  []*TokenMatcher
 	IgnoreMatchers []*TokenMatcher
 }
 
 type TokenMatcher struct {
-	Pattern         string         // The regular expression matching a ODATA query token, such as literal value, operator or function
-	Re              *regexp.Regexp // The compiled regex
-	Token           int            // The token identifier
-	CaseInsentitive bool           // Regex is case-insensitive
+	Pattern         string                 // The regular expression matching a ODATA query token, such as literal value, operator or function
+	Re              *regexp.Regexp         // The compiled regex
+	Token           int                    // The token identifier
+	CaseInsensitive bool                   // Regex is case-insensitive
+	Subst           func(in string) string // A function that substitutes the raw input token with another representation. By default it is the identity.
 }
 
 type Token struct {
@@ -49,14 +57,30 @@ type Token struct {
 }
 
 func (t *Tokenizer) Add(pattern string, token int) {
+	t.AddWithSubstituteFunc(pattern, token, func(in string) string { return in })
+}
+
+func (t *Tokenizer) AddWithSubstituteFunc(pattern string, token int, subst func(string) string) {
 	rxp := regexp.MustCompile(pattern)
-	matcher := &TokenMatcher{pattern, rxp, token, strings.Contains(pattern, "(?i)")}
+	matcher := &TokenMatcher{
+		Pattern:         pattern,
+		Re:              rxp,
+		Token:           token,
+		CaseInsensitive: strings.Contains(pattern, "(?i)"),
+		Subst:           subst,
+	}
 	t.TokenMatchers = append(t.TokenMatchers, matcher)
 }
 
 func (t *Tokenizer) Ignore(pattern string, token int) {
 	rxp := regexp.MustCompile(pattern)
-	matcher := &TokenMatcher{pattern, rxp, token, strings.Contains(pattern, "(?i)")}
+	matcher := &TokenMatcher{
+		Pattern:         pattern,
+		Re:              rxp,
+		Token:           token,
+		CaseInsensitive: strings.Contains(pattern, "(?i)"),
+		Subst:           func(in string) string { return in },
+	}
 	t.IgnoreMatchers = append(t.IgnoreMatchers, matcher)
 }
 
@@ -114,12 +138,14 @@ func (t *Tokenizer) TokenizeBytes(target []byte) ([]*Token, error) {
 			}
 			target = target[l:] // remove the token from the input
 			if !ignore {
-				if m.CaseInsentitive {
+				var v string
+				if m.CaseInsensitive {
 					// In ODATA 4.0.1, operators and functions are case insensitive.
-					parsed = Token{Value: strings.ToLower(string(token)), Type: m.Token}
+					v = strings.ToLower(string(token))
 				} else {
-					parsed = Token{Value: string(token), Type: m.Token}
+					v = string(token)
 				}
+				parsed = Token{Value: m.Subst(v), Type: m.Token}
 				result = append(result, &parsed)
 			}
 		}
@@ -169,9 +195,8 @@ func (o *Operator) SetPreferListExpr(v bool) {
 }
 
 type Function struct {
-	Token string
-	// The number of parameters this function accepts
-	Params []int
+	Token  string // The function token
+	Params []int  // The number of parameters this function accepts
 }
 
 type ParseNode struct {
@@ -202,7 +227,10 @@ func (p *ParseNode) String() string {
 }
 
 func EmptyParser() *Parser {
-	return &Parser{make(map[string]*Operator, 0), make(map[string]*Function)}
+	return &Parser{
+		Operators: make(map[string]*Operator, 0),
+		Functions: make(map[string]*Function),
+	}
 }
 
 // DefineOperator adds an operator to the language. Provide the token, the expected number of arguments,
@@ -225,20 +253,6 @@ func (p *Parser) DefineFunction(token string, params []int) {
 	p.Functions[token] = &Function{token, params}
 }
 
-// IsLiteral returns true if the specified token is considered a literal for this parser.
-func (p *Parser) IsLiteral(token *Token) bool {
-	if token.Value == "," || token.Value == "(" || token.Value == ")" {
-		return false
-	}
-	if _, ok := p.Functions[token.Value]; ok {
-		return false
-	}
-	if _, ok := p.Operators[token.Value]; ok {
-		return false
-	}
-	return true
-}
-
 // InfixToPostfix parses the input string of tokens using the given definitions of operators
 // and functions.
 // Everything else is assumed to be a literal.
@@ -252,48 +266,21 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 	queue := tokenQueue{} // output queue in postfix
 	stack := tokenStack{} // Operator stack
 
-	prevIsLiteral := false
-	for i := range tokens {
-		isLiteral := p.IsLiteral(tokens[i])
-		if isLiteral && prevIsLiteral {
-			// Cannot have two consecutive literal values.
-			return nil, BadRequestError(
-				fmt.Sprintf("Request cannot include two consecutive literal values '%v' and '%v'",
-					tokens[i-1].Value, tokens[i].Value))
-		}
-		prevIsLiteral = isLiteral
-	}
+	isCurrentTokenLiteral := false
 	for len(tokens) > 0 {
 		token := tokens[0]
 		tokens = tokens[1:]
 		if _, ok := p.Functions[token.Value]; ok {
-			if len(tokens) == 0 || tokens[0].Value != "(" {
+			isCurrentTokenLiteral = false
+			if len(tokens) == 0 || tokens[0].Value != TokenOpenParen {
 				// A function token must be followed by open parenthesis token.
 				return nil, BadRequestError(fmt.Sprintf("Function '%s' must be followed by '('", token.Value))
 			}
 			stack.incrementListArgCount()
 			// push functions onto the stack
 			stack.Push(token)
-		} else if token.Value == "," {
-			// Comma may be used as:
-			// 1. Separator of function parameters,
-			// 2. Separator for listExpr such as "City IN ('Seattle', 'San Francisco')"
-			//
-			// Pop off stack until we see a "("
-			for !stack.Empty() && stack.Peek().Value != "(" {
-				// This happens when the previous function argument is an expression composed
-				// of multiple tokens, as opposed to a single token. For example:
-				//     max(sin( 5 mul pi ) add 3, sin( 5 ))
-				queue.Enqueue(stack.Pop())
-			}
-			if stack.Empty() {
-				// there was an error parsing. The top of the stack must be open parenthesis
-				return nil, BadRequestError("Parse error")
-			}
-			if stack.Peek().Value != "(" {
-				panic("unexpected token")
-			}
 		} else if o1, ok := p.Operators[token.Value]; ok {
+			isCurrentTokenLiteral = false
 			// push operators onto stack according to precedence
 			if !stack.Empty() {
 				for o2, ok := p.Operators[stack.Peek().Value]; ok &&
@@ -307,107 +294,143 @@ func (p *Parser) InfixToPostfix(tokens []*Token) (*tokenQueue, error) {
 					o2, ok = p.Operators[stack.Peek().Value]
 				}
 			}
+			if o1.Operands == 1 { // not, -
+				stack.incrementListArgCount()
+			}
 			stack.Push(token)
-		} else if token.Value == "(" {
-			// In OData, the parenthesis tokens can be used:
-			// - As a parenExpr to set explicit precedence order, such as "(a + 2) x b"
-			//   These precedence tokens are removed while parsing the OData query.
-			// - As a listExpr for multi-value sets, such as "City in ('San Jose', 'Chicago', 'Dallas')"
-			//   The list tokens are retained while parsing the OData query.
-			//   ABNF grammar:
-			//   listExpr  = OPEN BWS commonExpr BWS *( COMMA BWS commonExpr BWS ) CLOSE
-			stack.incrementListArgCount()
-			// Push open parens onto the stack
-			stack.Push(token)
-		} else if token.Value == ")" {
-			// if we find a close paren, pop things off the stack
-			for !stack.Empty() {
-				if stack.Peek().Value == "(" {
-					break
-				} else {
+		} else {
+			switch token.Value {
+			case TokenOpenParen:
+				isCurrentTokenLiteral = false
+				// In OData, the parenthesis tokens can be used:
+				// - As a parenExpr to set explicit precedence order, such as "(a + 2) x b"
+				//   These precedence tokens are removed while parsing the OData query.
+				// - As a listExpr for multi-value sets, such as "City in ('San Jose', 'Chicago', 'Dallas')"
+				//   The list tokens are retained while parsing the OData query.
+				//   ABNF grammar:
+				//   listExpr  = OPEN BWS commonExpr BWS *( COMMA BWS commonExpr BWS ) CLOSE
+				stack.incrementListArgCount()
+				// Push open parens onto the stack
+				stack.Push(token)
+			case TokenCloseParen:
+				isCurrentTokenLiteral = false
+				// if we find a close paren, pop things off the stack
+				for !stack.Empty() {
+					if stack.Peek().Value == TokenOpenParen {
+						break
+					} else {
+						queue.Enqueue(stack.Pop())
+					}
+				}
+				if stack.Empty() {
+					// there was an error parsing
+					return nil, BadRequestError("Parse error. Mismatched parenthesis.")
+				}
+				// Get the argument count associated with the open paren.
+				// Example: (a, b, c) is a listExpr with three arguments.
+				argCount := stack.getArgCount()
+				// pop off open paren
+				stack.Pop()
+
+				// Determine if the parenthesis delimiters are:
+				// - A listExpr, possibly an empty list or single element.
+				//   Note a listExpr may be on the left-side or right-side of operators,
+				//   or it may be a list of function arguments.
+				// - A parenExpr, which is used as a precedence delimiter.
+				//
+				// (1, 2, 3) is a listExpr, there is no ambiguity.
+				// (1) matches both listExpr or parenExpr.
+				// parenExpr takes precedence over listExpr.
+				//
+				// For example:
+				//   1 IN (1, 2)  ==> parenthesis is used to create a list of two elements.
+				//   (1) + (2)    ==> parenthesis is a precedence delimiter, i.e. parenExpr.
+				var isFunc, isListExpr bool
+				if !stack.Empty() {
+					_, isFunc = p.Functions[stack.Peek().Value]
+				}
+				switch {
+				case isFunc:
+					isListExpr = true
+				case argCount <= 1:
+					// When a listExpr contains a single item, it is ambiguous whether it is a listExpr or parenExpr.
+					if !stack.Empty() {
+						if o1, ok := p.Operators[stack.Peek().Value]; ok {
+							if o1.PreferListExpr {
+								// The expression is the right operand of an operator that has a preference for listExpr vs parenExpr.
+								isListExpr = true
+							}
+						}
+					}
+					if !isListExpr && len(tokens) > 0 {
+						if o1, ok := p.Operators[tokens[0].Value]; ok {
+							// The expression is the left operand of an operator that has a preference for listExpr vs parenExpr.
+							if o1.PreferListExpr {
+								isListExpr = true
+							}
+						}
+					}
+				case argCount > 1:
+					isListExpr = true
+				}
+				if isListExpr {
+					// The open parenthesis was a delimiter for a listExpr.
+					// Add a token indicating the number of arguments in the list.
+					queue.Enqueue(&Token{
+						Value: strconv.Itoa(argCount),
+						Type:  TokenTypeArgCount,
+					})
+					// Enqueue a 'list' token if we are processing a ListExpr.
+					if !isFunc {
+						queue.Enqueue(&Token{
+							Value: TokenListExpr,
+							Type:  TokenTypeListExpr,
+						})
+					}
+				}
+				// if next token is a function or multi-value operator, move it to the queue
+				if isFunc {
 					queue.Enqueue(stack.Pop())
 				}
-			}
-			if stack.Empty() {
-				// there was an error parsing
-				return nil, BadRequestError("Parse error. Mismatched parenthesis.")
-			}
-			// Get the argument count associated with the open paren.
-			// Example: (a, b, c) is a listExpr with three arguments.
-			argCount := stack.getArgCount()
-			// pop off open paren
-			stack.Pop()
-
-			// Determine if the parenthesis delimiters are:
-			// - A listExpr, possibly an empty list or single element.
-			//   Note a listExpr may be on the left-side or right-side of operators,
-			//   or it may be a list of function arguments.
-			// - A parenExpr, which is used as a precedence delimiter.
-			//
-			// (1, 2, 3) is a listExpr, there is no ambiguity.
-			// (1) matches both listExpr or parenExpr.
-			// parenExpr takes precedence over listExpr.
-			//
-			// For example:
-			//   1 IN (1, 2)  ==> parenthesis is used to create a list of two elements.
-			//   (1) + (2)    ==> parenthesis is a precedence delimiter, i.e. parenExpr.
-			var isFunc, isListExpr bool
-			if !stack.Empty() {
-				_, isFunc = p.Functions[stack.Peek().Value]
-			}
-			switch {
-			case isFunc:
-				isListExpr = true
-			case argCount <= 1:
-				// When a listExpr contains a single item, it is ambiguous whether it is a listExpr or parenExpr.
-				if !stack.Empty() {
-					if o1, ok := p.Operators[stack.Peek().Value]; ok {
-						if o1.PreferListExpr {
-							// The expression is the right operand of an operator that has a preference for listExpr vs parenExpr.
-							isListExpr = true
-						}
-					}
+			case TokenComma:
+				// Function argument separator (",")
+				isCurrentTokenLiteral = false
+				// Comma may be used as:
+				// 1. Separator of function parameters,
+				// 2. Separator for listExpr such as "City IN ('Seattle', 'San Francisco')"
+				//
+				// Pop off stack until we see a TokenOpenParen
+				for !stack.Empty() && stack.Peek().Value != TokenOpenParen {
+					// This happens when the previous function argument is an expression composed
+					// of multiple tokens, as opposed to a single token. For example:
+					//     max(sin( 5 mul pi ) add 3, sin( 5 ))
+					queue.Enqueue(stack.Pop())
 				}
-				if !isListExpr && len(tokens) > 0 {
-					if o1, ok := p.Operators[tokens[0].Value]; ok {
-						// The expression is the left operand of an operator that has a preference for listExpr vs parenExpr.
-						if o1.PreferListExpr {
-							isListExpr = true
-						}
-					}
+				if stack.Empty() {
+					// there was an error parsing. The top of the stack must be open parenthesis
+					return nil, BadRequestError("Parse error")
 				}
-			case argCount > 1:
-				isListExpr = true
-			}
-			if isListExpr {
-				// The open parenthesis was a delimiter for a listExpr.
-				// Add a token indicating the number of arguments in the list.
-				queue.Enqueue(&Token{
-					Value: strconv.Itoa(argCount),
-					Type:  TokenTypeArgCount,
-				})
-				// Enqueue a 'list' token if we are processing a ListExpr.
-				if !isFunc {
-					queue.Enqueue(&Token{
-						Value: TokenListExpr,
-						Type:  TokenTypeListExpr,
-					})
+				if stack.Peek().Value != TokenOpenParen {
+					panic("unexpected token")
 				}
+			default:
+				if isCurrentTokenLiteral {
+					// In most cases, it is invalid to have two consecutive literal values.
+					// TODO: The exception is for a positionLiteral:
+					//    positionLiteral  = doubleValue SP doubleValue  ; longitude, then latitude
+					return nil, BadRequestError("Request cannot include two consecutive literal values")
+				}
+				isCurrentTokenLiteral = true
+				// Token is a literal -- put it in the queue
+				stack.incrementListArgCount()
+				queue.Enqueue(token)
 			}
-			// if next token is a function or multi-value operator, move it to the queue
-			if isFunc {
-				queue.Enqueue(stack.Pop())
-			}
-		} else {
-			// Token is a literal -- put it in the queue
-			stack.incrementListArgCount()
-			queue.Enqueue(token)
 		}
 	}
 
 	// pop off the remaining operators onto the queue
 	for !stack.Empty() {
-		if stack.Peek().Value == "(" || stack.Peek().Value == ")" {
+		if stack.Peek().Value == TokenOpenParen || stack.Peek().Value == TokenCloseParen {
 			return nil, BadRequestError("parse error. Mismatched parenthesis.")
 		}
 		queue.Enqueue(stack.Pop())
@@ -541,7 +564,7 @@ func (s *tokenStack) Empty() bool {
 }
 
 func (s *tokenStack) incrementListArgCount() {
-	if !s.Empty() && s.Head.Token.Value == "(" {
+	if !s.Empty() && s.Head.Token.Value == TokenOpenParen {
 		s.Head.tokenCount++
 	}
 }

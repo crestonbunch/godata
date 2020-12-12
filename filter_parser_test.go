@@ -55,11 +55,11 @@ func TestFilterAnyArrayOfObjects(t *testing.T) {
 	input := "Tags/any(d:d/Key eq 'Site' and d/Value lt 10)"
 	expect := []*Token{
 		&Token{Value: "Tags", Type: FilterTokenLiteral},
-		&Token{Value: "/", Type: FilterTokenNav},
+		&Token{Value: "/", Type: FilterTokenOp},
 		&Token{Value: "any", Type: FilterTokenLambda},
 		&Token{Value: "(", Type: FilterTokenOpenParen},
 		&Token{Value: "d", Type: FilterTokenLiteral},
-		&Token{Value: ":", Type: FilterTokenColon},
+		&Token{Value: ",", Type: FilterTokenColon}, // ':' is replaced by ',' which is the function argument separator.
 		&Token{Value: "d", Type: FilterTokenLiteral},
 		&Token{Value: "/", Type: FilterTokenNav},
 		&Token{Value: "Key", Type: FilterTokenLiteral},
@@ -90,11 +90,11 @@ func TestFilterAnyArrayOfPrimitiveTypes(t *testing.T) {
 	{
 		expect := []*Token{
 			&Token{Value: "Tags", Type: FilterTokenLiteral},
-			&Token{Value: "/", Type: FilterTokenNav},
+			&Token{Value: "/", Type: FilterTokenOp},
 			&Token{Value: "any", Type: FilterTokenLambda},
 			&Token{Value: "(", Type: FilterTokenOpenParen},
 			&Token{Value: "d", Type: FilterTokenLiteral},
-			&Token{Value: ":", Type: FilterTokenColon},
+			&Token{Value: ",", Type: FilterTokenColon},
 			&Token{Value: "d", Type: FilterTokenLiteral},
 			&Token{Value: "eq", Type: FilterTokenLogical},
 			&Token{Value: "'Site'", Type: FilterTokenString},
@@ -119,11 +119,159 @@ func TestFilterAnyArrayOfPrimitiveTypes(t *testing.T) {
 		{"/", 0},
 		{"Tags", 1},
 		{"any", 1},
-		{":", 2},
+		{"d", 2},
+		{"eq", 2},
 		{"d", 3},
+		{"'Site'", 3},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		fmt.Printf("Got tree:\n%v\n", q.Tree.String())
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
+// geographyPolygon   = geographyPrefix SQUOTE fullPolygonLiteral SQUOTE
+// geographyPrefix = "geography"
+// fullPolygonLiteral = sridLiteral polygonLiteral
+// sridLiteral      = "SRID" EQ 1*5DIGIT SEMI
+// polygonLiteral     = "Polygon" polygonData
+// polygonData        = OPEN ringLiteral *( COMMA ringLiteral ) CLOSE
+// positionLiteral  = doubleValue SP doubleValue  ; longitude, then latitude
+/*
+func TestFilterGeographyPolygon(t *testing.T) {
+	input := "geo.intersects(location, geography'SRID=0;Polygon(-122.031577 47.578581, -122.031577 47.678581, -122.131577 47.678581, -122.031577 47.578581)')"
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"geo.intersects", 0},
+		{"location", 1},
+		{"geography'SRID=0;Polygon(-122.031577 47.578581, -122.031577 47.678581, -122.131577 47.678581, -122.031577 47.578581)'", 1},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		fmt.Printf("Got tree:\n%v\n", q.Tree.String())
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+*/
+
+// TestFilterAnyGeography matches documents where any of the geo coordinates in the locations field is within the given polygon.
+/*
+func TestFilterAnyGeography(t *testing.T) {
+	input := "locations/any(loc: geo.intersects(loc, geography'Polygon((-122.031577 47.578581, -122.031577 47.678581, -122.131577 47.678581, -122.031577 47.578581))'))"
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Tags", 1},
+		{"any", 1},
+		{"d", 2},
+		{"or", 2},
+		{"or", 3},
+		{"or", 4},
+		{"eq", 5},
+		{"d", 6},
+		{"'Site'", 6},
+		{"eq", 5},
+		{"'Environment'", 6},
+		{"/", 6},
+		{"d", 7},
+		{"Key", 7},
+		{"eq", 4},
+		{"/", 5},
+		{"/", 6},
+		{"d", 7},
+		{"d", 7},
+		{"d", 6},
+		{"123456", 5},
 		{"eq", 3},
-		{"d", 4},
-		{"'Site'", 4},
+		{"concat", 4},
+		{"/", 5},
+		{"d", 6},
+		{"FirstName", 6},
+		{"/", 5},
+		{"d", 6},
+		{"LastName", 6},
+		{"/", 4},
+		{"$it", 5},
+		{"FullName", 5},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		fmt.Printf("Got tree:\n%v\n", q.Tree.String())
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+*/
+
+func TestFilterAnyMixedQuery(t *testing.T) {
+	/*
+		{
+			"Tags": [
+				"Site",
+				{ "Key": "Environment" },
+				{ "d" : { "d": 123456 }},
+				{ "FirstName" : "Bob", "LastName": "Smith"}
+			],
+			"FullName": "BobSmith"
+		}
+	*/
+	// The argument of a lambda operator is a case-sensitive lambda variable name followed by a colon (:) and a Boolean expression that
+	// uses the lambda variable name to refer to properties of members of the collection identified by the navigation path.
+	// If the name chosen for the lambda variable matches a property name of the current resource referenced by the resource path, the lambda variable takes precedence.
+	// Clients can prefix properties of the current resource referenced by the resource path with $it.
+	// Other path expressions in the Boolean expression neither prefixed with the lambda variable nor $it are evaluated in the scope of
+	// the collection instances at the origin of the navigation path prepended to the lambda operator.
+	input := "Tags/any(d:d eq 'Site' or 'Environment' eq d/Key or d/d/d eq 123456 or concat(d/FirstName, d/LastName) eq $it/FullName)"
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Tags", 1},
+		{"any", 1},
+		{"d", 2},
+		{"or", 2},
+		{"or", 3},
+		{"or", 4},
+		{"eq", 5},
+		{"d", 6},
+		{"'Site'", 6},
+		{"eq", 5},
+		{"'Environment'", 6},
+		{"/", 6},
+		{"d", 7},
+		{"Key", 7},
+		{"eq", 4},
+		{"/", 5},
+		{"/", 6},
+		{"d", 7},
+		{"d", 7},
+		{"d", 6},
+		{"123456", 5},
+		{"eq", 3},
+		{"concat", 4},
+		{"/", 5},
+		{"d", 6},
+		{"FirstName", 6},
+		{"/", 5},
+		{"d", 6},
+		{"LastName", 6},
+		{"/", 4},
+		{"$it", 5},
+		{"FullName", 5},
 	}
 	pos := 0
 	err = CompareTree(q.Tree, expect, &pos, 0)
@@ -199,7 +347,7 @@ func TestFilterAnyWithNoArgs(t *testing.T) {
 	{
 		expect := []*Token{
 			&Token{Value: "Tags", Type: FilterTokenLiteral},
-			&Token{Value: "/", Type: FilterTokenNav},
+			&Token{Value: "/", Type: FilterTokenOp},
 			&Token{Value: "any", Type: FilterTokenLambda},
 			&Token{Value: "(", Type: FilterTokenOpenParen},
 			&Token{Value: ")", Type: FilterTokenCloseParen},
@@ -272,6 +420,41 @@ func TestFilterDivby(t *testing.T) {
 			t.Error(err)
 		}
 	}
+}
+
+func TestFilterNotBooleanProperty(t *testing.T) {
+	tokenizer := FilterTokenizer()
+	input := "not Enabled"
+	{
+		expect := []*Token{
+			&Token{Value: "not", Type: FilterTokenLogical},
+			&Token{Value: "Enabled", Type: FilterTokenLiteral},
+		}
+		output, err := tokenizer.Tokenize(input)
+		if err != nil {
+			t.Error(err)
+		}
+		result, err := CompareTokens(expect, output)
+		if !result {
+			t.Error(err)
+		}
+	}
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"not", 0},
+		{"Enabled", 1},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		fmt.Printf("Got tree:\n%v\n", q.Tree.String())
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+
 }
 
 // Note: according to ODATA ABNF notation, there must be a space between not and open parenthesis.
@@ -726,11 +909,11 @@ func TestFilterAll(t *testing.T) {
 	input := "Tags/all(d:d/Key eq 'Site')"
 	expect := []*Token{
 		&Token{Value: "Tags", Type: FilterTokenLiteral},
-		&Token{Value: "/", Type: FilterTokenNav},
+		&Token{Value: "/", Type: FilterTokenOp},
 		&Token{Value: "all", Type: FilterTokenLambda},
 		&Token{Value: "(", Type: FilterTokenOpenParen},
 		&Token{Value: "d", Type: FilterTokenLiteral},
-		&Token{Value: ":", Type: FilterTokenColon},
+		&Token{Value: ",", Type: FilterTokenColon},
 		&Token{Value: "d", Type: FilterTokenLiteral},
 		&Token{Value: "/", Type: FilterTokenNav},
 		&Token{Value: "Key", Type: FilterTokenLiteral},
@@ -1041,6 +1224,7 @@ func TestValidFilterSyntax(t *testing.T) {
 		"Tags/ANY(var:var/Key eq 'Site' AND var/Value eq 'London')",
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') and not (City in ('Dallas'))",
 		"Tags/all(var:var/Key eq 'Site' and var/Value eq 'London')",
+		"Price/any(t:not (12345 eq t))",
 		// A long query.
 		"Tags/any(var:var/Key eq 'Site' and var/Value eq 'London') or " +
 			"Tags/any(var:var/Key eq 'Site' and var/Value eq 'Berlin') or " +
@@ -1278,18 +1462,18 @@ func BenchmarkFilterTokenizer(b *testing.B) {
 }
 
 // Check if two slices of tokens are the same.
-func CompareTokens(a, b []*Token) (bool, error) {
-	if len(a) != len(b) {
-		return false, fmt.Errorf("Different lengths. Expected %d, Got %d", len(a), len(b))
+func CompareTokens(expected, actual []*Token) (bool, error) {
+	if len(expected) != len(actual) {
+		return false, fmt.Errorf("Different lengths. Expected %d, Got %d", len(expected), len(actual))
 	}
-	for i := range a {
-		if a[i].Type != b[i].Type {
-			return false, fmt.Errorf("Different token types at index %d. Type: %v != %v. Value: %v",
-				i, a[i].Type, b[i].Type, a[i].Value)
+	for i := range expected {
+		if expected[i].Type != actual[i].Type {
+			return false, fmt.Errorf("Different token types at index %d. Expected %v, Got %v. Value: %v",
+				i, expected[i].Type, actual[i].Type, expected[i].Value)
 		}
-		if a[i].Value != b[i].Value {
-			return false, fmt.Errorf("Different token values at index %d. Value: %v != %v",
-				i, a[i].Value, b[i].Value)
+		if expected[i].Value != actual[i].Value {
+			return false, fmt.Errorf("Different token values at index %d. Expected %v, Got %v",
+				i, expected[i].Value, actual[i].Value)
 		}
 	}
 	return true, nil
@@ -1678,6 +1862,97 @@ func TestGeoFunctions(t *testing.T) {
 }
 
 func TestLambdaAny(t *testing.T) {
+	input := "Tags/any(var:var/Key eq 'Site')"
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Tags", 1},
+		{"any", 1},
+		{"var", 2},
+		{"eq", 2},
+		{"/", 3},
+		{"var", 4},
+		{"Key", 4},
+		{"'Site'", 3},
+	}
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
+func TestLambdaAnyNot(t *testing.T) {
+	input := "Price/any(t:not (12345 eq t ))"
+
+	tokens, err := GlobalFilterTokenizer.Tokenize(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	output, err := GlobalFilterParser.InfixToPostfix(tokens)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	{
+		expect := []*Token{
+			&Token{Value: "Price", Type: FilterTokenLiteral},
+			&Token{Value: "t", Type: FilterTokenLiteral},
+			&Token{Value: "12345", Type: FilterTokenInteger},
+			&Token{Value: "t", Type: FilterTokenLiteral},
+			&Token{Value: "eq", Type: FilterTokenLogical},
+			&Token{Value: "not", Type: FilterTokenLogical},
+			&Token{Value: "2", Type: TokenTypeArgCount},
+			&Token{Value: "any", Type: FilterTokenLambda},
+			&Token{Value: "/", Type: FilterTokenOp},
+		}
+		var result bool
+		result, err = CompareQueue(expect, output)
+		if !result {
+			t.Error(err)
+		}
+	}
+	tree, err := GlobalFilterParser.PostfixToTree(output)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Price", 1},
+		{"any", 1},
+		{"t", 2},
+		{"not", 2},
+		{"eq", 3},
+		{"12345", 4},
+		{"t", 4},
+	}
+	pos := 0
+	err = CompareTree(tree, expect, &pos, 0)
+	if err != nil {
+		printTree(tree)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
+func TestLambdaAnyAnd(t *testing.T) {
 	input := "Tags/any(var:var/Key eq 'Site' and var/Value eq 'London')"
 	tokens, err := GlobalFilterTokenizer.Tokenize(input)
 	if err != nil {
@@ -1699,19 +1974,18 @@ func TestLambdaAny(t *testing.T) {
 		{"/", 0},
 		{"Tags", 1},
 		{"any", 1},
-		{":", 2},
-		{"var", 3},
-		{"and", 3},
-		{"eq", 4},
-		{"/", 5},
-		{"var", 6},
-		{"Key", 6},
-		{"'Site'", 5},
-		{"eq", 4},
-		{"/", 5},
-		{"var", 6},
-		{"Value", 6},
-		{"'London'", 5},
+		{"var", 2},
+		{"and", 2},
+		{"eq", 3},
+		{"/", 4},
+		{"var", 5},
+		{"Key", 5},
+		{"'Site'", 4},
+		{"eq", 3},
+		{"/", 4},
+		{"var", 5},
+		{"Value", 5},
+		{"'London'", 4},
 	}
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
@@ -1721,8 +1995,42 @@ func TestLambdaAny(t *testing.T) {
 	}
 }
 
+func TestLambdaNestedAny(t *testing.T) {
+	input := "Enabled/any(t:t/Value eq Config/any(c:c/AdminState eq 'TRUE'))"
+	q, err := ParseFilterString(input)
+	if err != nil {
+		t.Errorf("Error parsing query %s. Error: %s", input, err.Error())
+		return
+	}
+	var expect []expectedParseNode = []expectedParseNode{
+		{"/", 0},
+		{"Enabled", 1},
+		{"any", 1},
+		{"t", 2},
+		{"eq", 2},
+		{"/", 3},
+		{"t", 4},
+		{"Value", 4},
+		{"/", 3},
+		{"Config", 4},
+		{"any", 4},
+		{"c", 5},
+		{"eq", 5},
+		{"/", 6},
+		{"c", 7},
+		{"AdminState", 7},
+		{"'TRUE'", 6},
+	}
+	pos := 0
+	err = CompareTree(q.Tree, expect, &pos, 0)
+	if err != nil {
+		printTree(q.Tree)
+		t.Errorf("Tree representation does not match expected value. error: %s", err.Error())
+	}
+}
+
 // TestLambdaAnyNested validates the any() lambda function with multiple nested properties.
-func TestLambdaAnyNested(t *testing.T) {
+func TestLambdaAnyNestedProperties(t *testing.T) {
 	input := "Config/any(var:var/Config/Priority eq 123)"
 	tokens, err := GlobalFilterTokenizer.Tokenize(input)
 	if err != nil {
@@ -1744,15 +2052,14 @@ func TestLambdaAnyNested(t *testing.T) {
 		{"/", 0},
 		{"Config", 1},
 		{"any", 1},
-		{":", 2},
-		{"var", 3},
-		{"eq", 3},
+		{"var", 2},
+		{"eq", 2},
+		{"/", 3},
 		{"/", 4},
-		{"/", 5},
-		{"var", 6},
-		{"Config", 6},
-		{"Priority", 5},
-		{"123", 4},
+		{"var", 5},
+		{"Config", 5},
+		{"Priority", 4},
+		{"123", 3},
 	}
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
@@ -1784,23 +2091,22 @@ func TestLambda2(t *testing.T) {
 		{"/", 0},
 		{"Tags", 1},
 		{"any", 1},
-		{":", 2},
-		{"var", 3},
-		{"or", 3},
-		{"and", 4},
-		{"eq", 5},
-		{"/", 6},
-		{"var", 7},
-		{"Key", 7},
-		{"'Site'", 6},
-		{"eq", 5},
-		{"/", 6},
-		{"var", 7},
-		{"Value", 7},
-		{"'London'", 6},
-		{"gt", 4},
-		{"Price", 5},
-		{"1.0", 5},
+		{"var", 2},
+		{"or", 2},
+		{"and", 3},
+		{"eq", 4},
+		{"/", 5},
+		{"var", 6},
+		{"Key", 6},
+		{"'Site'", 5},
+		{"eq", 4},
+		{"/", 5},
+		{"var", 6},
+		{"Value", 6},
+		{"'London'", 5},
+		{"gt", 3},
+		{"Price", 4},
+		{"1.0", 4},
 	}
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
@@ -1832,29 +2138,28 @@ func TestLambda3(t *testing.T) {
 		{"/", 0},
 		{"Tags", 1},
 		{"any", 1},
-		{":", 2},
-		{"var", 3},
+		{"var", 2},
+		{"or", 2},
 		{"or", 3},
-		{"or", 4},
-		{"and", 5},
-		{"eq", 6},
-		{"/", 7},
-		{"var", 8},
-		{"Key", 8},
-		{"'Site'", 7},
-		{"eq", 6},
-		{"/", 7},
-		{"var", 8},
-		{"Value", 8},
-		{"'London'", 7},
-		{"gt", 5},
-		{"Price", 6},
-		{"1.0", 6},
-		{"contains", 4},
-		{"/", 5},
-		{"var", 6},
-		{"Value", 6},
-		{"'Smith'", 5},
+		{"and", 4},
+		{"eq", 5},
+		{"/", 6},
+		{"var", 7},
+		{"Key", 7},
+		{"'Site'", 6},
+		{"eq", 5},
+		{"/", 6},
+		{"var", 7},
+		{"Value", 7},
+		{"'London'", 6},
+		{"gt", 4},
+		{"Price", 5},
+		{"1.0", 5},
+		{"contains", 3},
+		{"/", 4},
+		{"var", 5},
+		{"Value", 5},
+		{"'Smith'", 4},
 	}
 	pos := 0
 	err = CompareTree(tree, expect, &pos, 0)
