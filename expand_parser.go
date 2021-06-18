@@ -21,6 +21,7 @@ var GlobalExpandTokenizer = ExpandTokenizer()
 type ExpandItem struct {
 	Path    []*Token
 	Filter  *GoDataFilterQuery
+	At      *GoDataFilterQuery
 	Search  *GoDataSearchQuery
 	OrderBy *GoDataOrderByQuery
 	Skip    *GoDataSkipQuery
@@ -161,12 +162,21 @@ func ParseExpandOption(queue *tokenQueue, item *ExpandItem) error {
 		return BadRequestError("Invalid expand clause.")
 	}
 	queue.Dequeue() // drop the '=' from the front of the queue
-	body := queue.String()
+	body := queue.GetValue()
 
 	if head == "$filter" {
 		filter, err := ParseFilterString(body)
 		if err == nil {
 			item.Filter = filter
+		} else {
+			return err
+		}
+	}
+
+	if head == "at" {
+		at, err := ParseFilterString(body)
+		if err == nil {
+			item.At = at
 		} else {
 			return err
 		}

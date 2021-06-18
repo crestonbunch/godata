@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"fmt"
 	. "godata"
 	//"database/sql"
 	//"errors"
@@ -119,74 +118,78 @@ func BuildMySQLProvider(cxnParams *MySQLConnectionParams, namespace string) *MyS
 }
 
 func (p *MySQLGoDataProvider) BuildQuery(r *GoDataRequest) (string, error) {
-	setName := r.FirstSegment.Name
-	entitySet := p.EntitySets[setName]
-	tableName := entitySet.Entity.TableName
-	pKeyValue := r.FirstSegment.Identifier
+	/*
+		setName := r.FirstSegment.Name
+		entitySet := p.EntitySets[setName]
+		tableName := entitySet.Entity.TableName
+		pKeyValue := r.FirstSegment.Identifier
 
-	query := []byte{}
-	params := []string{}
+		query := []byte{}
+		params := []string{}
 
-	selectClause, selectParams, selectErr := p.BuildSelectClause(r)
-	if selectErr != nil {
-		return nil, selectErr
-	}
-	query = append(query, selectClause)
-	params = append(params, selectParams)
+		selectClause, selectParams, selectErr := p.BuildSelectClause(r)
+		if selectErr != nil {
+			return nil, selectErr
+		}
+		query = append(query, selectClause)
+		params = append(params, selectParams)
 
-	fromClause, fromParams, fromErr := p.BuildFromClause(r)
-	if fromErr != nil {
-		return nil, fromErr
-	}
-	query = append(query, selectClause)
-	params = append(params, selectParams)
-
+		fromClause, fromParams, fromErr := p.BuildFromClause(r)
+		if fromErr != nil {
+			return nil, fromErr
+		}
+		query = append(query, selectClause)
+		params = append(params, selectParams)
+	*/
+	return "", NotImplementedError("not implemented")
 }
 
 // Build the select clause to begin the query, and also return the values to
 // send to a prepared statement.
 func (p *MySQLGoDataProvider) BuildSelectClause(r *GoDataRequest) ([]byte, []string, error) {
-
+	return nil, nil, NotImplementedError("not implemented")
 }
 
 // Build the from clause in the query, and also return the values to send to
 // the prepared statement.
 func (p *MySQLGoDataProvider) BuildFromClause(r *GoDataRequest) ([]byte, []string, error) {
-
+	return nil, nil, NotImplementedError("not implemented")
 }
 
 // Build a where clause that can be appended to an SQL query, and also return
 // the values to send to a prepared statement.
 func (p *MySQLGoDataProvider) BuildWhereClause(r *GoDataRequest) ([]byte, []string, error) {
-
-	// Builds the WHERE clause recursively using DFS
-	recursiveBuildWhere := func(n *ParseNode) ([]byte, []string, error) {
-		if n.Token.Type == FilterTokenLiteral {
-			// TODO: map to columns
-			return []byte("?"), []byte(n.Token.Value), nil
-		}
-
-		if v, ok := MySQLNodeMap[n.Token.Value]; ok {
-			params := string
-			children := []byte{}
-			// build each child first using DFS
-			for _, child := range n.Children {
-				q, o, err := recursiveBuildWhere(child)
-				if err != nil {
-					return nil, nil, err
-				}
-				children := append(children, q)
-				// make the assumption that all params appear LTR and are never added
-				// out of order
-				params := append(params, o)
+	/*
+		// Builds the WHERE clause recursively using DFS
+		recursiveBuildWhere := func(n *ParseNode) ([]byte, []string, error) {
+			if n.Token.Type == FilterTokenLiteral {
+				// TODO: map to columns
+				return []byte("?"), []byte(n.Token.Value), nil
 			}
-			// merge together the children and the current node
-			result := fmt.Sprintf(v, children...)
-			return []byte(result), params, nil
-		} else {
-			return nil, nil, NotImplementedError(n.Token.Value + " is not implemented.")
+
+			if v, ok := MySQLNodeMap[n.Token.Value]; ok {
+				params := string
+				children := []byte{}
+				// build each child first using DFS
+				for _, child := range n.Children {
+					q, o, err := recursiveBuildWhere(child)
+					if err != nil {
+						return nil, nil, err
+					}
+					children := append(children, q)
+					// make the assumption that all params appear LTR and are never added
+					// out of order
+					params := append(params, o)
+				}
+				// merge together the children and the current node
+				result := fmt.Sprintf(v, children...)
+				return []byte(result), params, nil
+			} else {
+				return nil, nil, NotImplementedError(n.Token.Value + " is not implemented.")
+			}
 		}
-	}
+	*/
+	return nil, nil, NotImplementedError("not implemented")
 }
 
 // Respond to a GoDataRequest using the MySQL provider.

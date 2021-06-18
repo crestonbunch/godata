@@ -8,13 +8,13 @@ import (
 
 // Parse a request from the HTTP server and format it into a GoDaataRequest type
 // to be passed to a provider to produce a result.
-func ParseRequest(path string, query url.Values) (*GoDataRequest, error) {
+func ParseRequest(path string, query url.Values, lenient bool) (*GoDataRequest, error) {
 
 	firstSegment, lastSegment, err := ParseUrlPath(path)
 	if err != nil {
 		return nil, err
 	}
-	parsedQuery, err := ParseUrlQuery(query)
+	parsedQuery, err := ParseUrlQuery(query, lenient)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +207,6 @@ func SemanticizePathSegment(segment *GoDataSegment, service *GoDataService) erro
 
 var supportedOdataKeywords = map[string]bool{
 	"$filter":      true,
-	"at":           true,
 	"$apply":       true,
 	"$expand":      true,
 	"$select":      true,
@@ -218,21 +217,22 @@ var supportedOdataKeywords = map[string]bool{
 	"$inlinecount": true,
 	"$search":      true,
 	"$format":      true,
+	"at":           true,
+	"tags":         true,
 }
 
-func ParseUrlQuery(query url.Values) (*GoDataQuery, error) {
-	for key, val := range query {
-		if _, ok := supportedOdataKeywords[key]; !ok {
-			keywords := make([]string, 0, len(supportedOdataKeywords))
-			for k := range supportedOdataKeywords {
-				keywords = append(keywords, k)
+func ParseUrlQuery(query url.Values, lenient bool) (*GoDataQuery, error) {
+	if !lenient {
+		// Validate each query parameter is a valid ODATA keyword.
+		for key, val := range query {
+			if _, ok := supportedOdataKeywords[key]; !ok {
+				return nil, BadRequestError(fmt.Sprintf("Query parameter '%s' is not supported", key)).
+					SetCause(&UnsupportedQueryParameterError{key})
 			}
-			return nil, fmt.Errorf("Invalid OData query. '%s' is not a supported keyword. Supported keywords are %s",
-				key, strings.Join(keywords, ", "))
-		}
-		if len(val) > 1 {
-			return nil, fmt.Errorf("Invalid OData query. Each key in the query must be specified at most once, but key '%s' has %d occurences",
-				key, len(val))
+			if len(val) > 1 {
+				return nil, BadRequestError(fmt.Sprintf("Query parameter '%s' cannot be specified more than once", key)).
+					SetCause(&DuplicateQueryParameterError{key})
+			}
 		}
 	}
 	filter := query.Get("$filter")
@@ -253,6 +253,15 @@ func ParseUrlQuery(query url.Values) (*GoDataQuery, error) {
 	var err error = nil
 	if filter != "" {
 		result.Filter, err = ParseFilterString(filter)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if at != "" {
+		result.At, err = ParseFilterString(at)
+	}
+	if err != nil {
+		return nil, err
 	}
 	if at != "" {
 		result.At, err = ParseFilterString(at)
