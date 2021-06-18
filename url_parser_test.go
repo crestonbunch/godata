@@ -60,7 +60,7 @@ func TestUrlParserStrictValidation(t *testing.T) {
 		return
 	}
 
-	// Wrong filter
+	// Wrong filter with an extraneous single quote
 	testUrl = "Employees(1)/Sales.Manager?$filter=FirstName eq' 'Bob'"
 	parsedUrl, err = url.Parse(testUrl)
 	if err != nil {
@@ -69,10 +69,13 @@ func TestUrlParserStrictValidation(t *testing.T) {
 	}
 	_, err = ParseRequest(parsedUrl.Path, parsedUrl.Query(), false)
 	if err == nil {
-		t.Error("Parser should have returned invalid filter error")
+		t.Errorf("Parser should have returned invalid filter error: %s", testUrl)
 		return
 	}
 
+	// Valid query with two parameters:
+	// $filter=FirstName eq 'Bob'
+	// at=Version eq '123'
 	testUrl = "Employees(1)/Sales.Manager?$filter=FirstName eq 'Bob'&at=Version eq '123'"
 	parsedUrl, err = url.Parse(testUrl)
 	if err != nil {
@@ -85,6 +88,9 @@ func TestUrlParserStrictValidation(t *testing.T) {
 		return
 	}
 
+	// Invalid query:
+	// $filter=FirstName eq' 'Bob' has extraneous single quote.
+	// at=Version eq '123'         is valid
 	testUrl = "Employees(1)/Sales.Manager?$filter=FirstName eq' 'Bob'&at=Version eq '123'"
 	parsedUrl, err = url.Parse(testUrl)
 	if err != nil {
@@ -93,7 +99,7 @@ func TestUrlParserStrictValidation(t *testing.T) {
 	}
 	_, err = ParseRequest(parsedUrl.Path, parsedUrl.Query(), false)
 	if err == nil {
-		t.Error("Parser should have returned invalid filter error")
+		t.Errorf("Parser should have returned invalid filter error: %s", testUrl)
 		return
 	}
 
@@ -158,18 +164,20 @@ func TestUrlParserStrictValidation(t *testing.T) {
 		return
 	}
 
-	// Duplicate keywords
+	// Duplicate keyword: '$select' is present twice.
 	testUrl = "Employees(1)/Sales.Manager?$select=3DFirstName&$select=3DFirstName"
 	parsedUrl, err = url.Parse(testUrl)
 	if err != nil {
 		t.Error(err)
 		return
 	}
+	// In lenient mode, do not return an error when there is a duplicate keyword.
 	_, err = ParseRequest(parsedUrl.Path, parsedUrl.Query(), true /*lenient*/)
 	if err != nil {
 		t.Error(err)
 		return
 	}
+	// In strict mode, return an error when there is a duplicate keyword.
 	_, err = ParseRequest(parsedUrl.Path, parsedUrl.Query(), false /*strict*/)
 	if err == nil {
 		t.Error("Parser should have returned duplicate keyword error")

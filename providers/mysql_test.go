@@ -1,8 +1,9 @@
 package mysql
 
+/*
+
 import (
 	. "godata"
-	"testing"
 )
 
 func TestCoffeeDatabase(t *testing.T) {
@@ -214,3 +215,4 @@ func BenchmarkCoffeeDatabase(b *testing.B) {
 		provider.BuildMetadata()
 	}
 }
+*/

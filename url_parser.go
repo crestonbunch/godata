@@ -223,6 +223,7 @@ var supportedOdataKeywords = map[string]bool{
 
 func ParseUrlQuery(query url.Values, lenient bool) (*GoDataQuery, error) {
 	if !lenient {
+		// Validate each query parameter is a valid ODATA keyword.
 		for key, val := range query {
 			if _, ok := supportedOdataKeywords[key]; !ok {
 				return nil, BadRequestError(fmt.Sprintf("Query parameter '%s' is not supported", key)).
@@ -252,6 +253,9 @@ func ParseUrlQuery(query url.Values, lenient bool) (*GoDataQuery, error) {
 	var err error = nil
 	if filter != "" {
 		result.Filter, err = ParseFilterString(filter)
+	}
+	if err != nil {
+		return nil, err
 	}
 	if at != "" {
 		result.At, err = ParseFilterString(at)
