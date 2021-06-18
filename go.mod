@@ -1,3 +1,3 @@
-module github.com/CiscoM31/godata
+module godata
 
 go 1.16
