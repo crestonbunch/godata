@@ -34,6 +34,10 @@ func (t *GoDataMetadata) Bytes() ([]byte, error) {
 	return append([]byte(xml.Header), output...), nil
 }
 
+func (t *GoDataMetadata) String() string {
+	return ""
+}
+
 type GoDataReference struct {
 	XMLName            xml.Name `xml:"edmx:Reference"`
 	Uri                string   `xml:"Uri,attr"`

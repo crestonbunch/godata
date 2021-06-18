@@ -26,7 +26,7 @@ func ParseSearchString(filter string) (*GoDataSearchQuery, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &GoDataSearchQuery{tree}, nil
+	return &GoDataSearchQuery{tree, filter}, nil
 }
 
 // Create a tokenizer capable of tokenizing filter statements

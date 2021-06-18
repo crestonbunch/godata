@@ -72,13 +72,13 @@ func TestExpandNestedCommas(t *testing.T) {
 
 	if output.ExpandItems[0].Select.SelectItems[0].Segments[0].Value != "FirstName" {
 		actual := output.ExpandItems[0].Select.SelectItems[0].Segments[0]
-		t.Error("First select segment is '" + actual.Value + "' not 'FirstName'")
+		t.Error("First select segment is '" + actual.Value + "', expected 'FirstName'")
 		return
 	}
 
 	if output.ExpandItems[0].Select.SelectItems[1].Segments[0].Value != "LastName" {
 		actual := output.ExpandItems[0].Select.SelectItems[1].Segments[0]
-		t.Error("First select segment is '" + actual.Value + "' not 'LastName'")
+		t.Error("First select segment is '" + actual.Value + "', expected 'LastName'")
 		return
 	}
 

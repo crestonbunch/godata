@@ -7,8 +7,8 @@ import (
 
 func TestPEMDAS(t *testing.T) {
 	parser := EmptyParser()
-	parser.DefineFunction("sin", 1)
-	parser.DefineFunction("max", 2)
+	parser.DefineFunction("sin", []int{1})
+	parser.DefineFunction("max", []int{2})
 	parser.DefineOperator("^", 2, OpAssociationRight, 5)
 	parser.DefineOperator("*", 2, OpAssociationLeft, 5)
 	parser.DefineOperator("/", 2, OpAssociationLeft, 5)
@@ -61,8 +61,8 @@ func TestPEMDAS(t *testing.T) {
 
 func BenchmarkPEMDAS(b *testing.B) {
 	parser := EmptyParser()
-	parser.DefineFunction("sin", 1)
-	parser.DefineFunction("max", 2)
+	parser.DefineFunction("sin", []int{1})
+	parser.DefineFunction("max", []int{2})
 	parser.DefineOperator("^", 2, OpAssociationRight, 5)
 	parser.DefineOperator("*", 2, OpAssociationLeft, 5)
 	parser.DefineOperator("/", 2, OpAssociationLeft, 5)
@@ -138,16 +138,16 @@ func TestBoolean(t *testing.T) {
 
 func TestFunc(t *testing.T) {
 	parser := EmptyParser()
-	parser.DefineFunction("sin", 1)
-	parser.DefineFunction("max", 2)
-	parser.DefineFunction("volume", 3)
+	parser.DefineFunction("sin", []int{1})
+	parser.DefineFunction("max", []int{2})
+	parser.DefineFunction("volume", []int{3})
 	parser.DefineOperator("^", 2, OpAssociationRight, 5)
 	parser.DefineOperator("*", 2, OpAssociationLeft, 5)
 	parser.DefineOperator("/", 2, OpAssociationLeft, 5)
 	parser.DefineOperator("+", 2, OpAssociationLeft, 4)
 	parser.DefineOperator("-", 2, OpAssociationLeft, 4)
 
-	// max(sin(5*pi)+3, sin(5)+volume(3,2,4)/2)
+	// max(sin(5*pi)+3, sin(5)+volume(3,2,4)/[]int{3})
 	tokens := []*Token{
 		&Token{Value: "max"},
 		&Token{Value: "("},
@@ -180,8 +180,10 @@ func TestFunc(t *testing.T) {
 
 	// 5 pi * sin 3 + 5 sin 3 2 4 volume 2 / + max
 	expected := []string{
-		"5", "pi", "*", "sin", "3", "+", "5", "sin", "3", "2", "4", "volume", "2",
-		"/", "+", "max"}
+		"5", "pi", "*", "1" /* arg count */, "sin", "3", "+", "5", "1" /* arg count */, "sin",
+		"3", "2", "4", "3" /* arg count */, "volume", "2",
+		"/", "+",
+		"2" /* arg count */, "max"}
 	result, err := parser.InfixToPostfix(tokens)
 
 	if err != nil {
@@ -205,8 +207,8 @@ func TestFunc(t *testing.T) {
 
 func TestTree(t *testing.T) {
 	parser := EmptyParser()
-	parser.DefineFunction("sin", 1)
-	parser.DefineFunction("max", 2)
+	parser.DefineFunction("sin", []int{1})
+	parser.DefineFunction("max", []int{2})
 	parser.DefineOperator("^", 2, OpAssociationRight, 5)
 	parser.DefineOperator("*", 2, OpAssociationLeft, 5)
 	parser.DefineOperator("/", 2, OpAssociationLeft, 5)
@@ -237,8 +239,11 @@ func TestTree(t *testing.T) {
 		t.Error(err)
 	}
 
-	root, _ := parser.PostfixToTree(result)
-
+	root, err := parser.PostfixToTree(result)
+	if err != nil {
+		t.Error("Error parsing query")
+		return
+	}
 	if root.Token.Value != "sin" {
 		t.Error("Root node is not sin")
 	}
@@ -267,8 +272,8 @@ func TestTree(t *testing.T) {
 
 func BenchmarkBuildTree(b *testing.B) {
 	parser := EmptyParser()
-	parser.DefineFunction("sin", 1)
-	parser.DefineFunction("max", 2)
+	parser.DefineFunction("sin", []int{1})
+	parser.DefineFunction("max", []int{2})
 	parser.DefineOperator("^", 2, OpAssociationRight, 5)
 	parser.DefineOperator("*", 2, OpAssociationLeft, 5)
 	parser.DefineOperator("/", 2, OpAssociationLeft, 5)
