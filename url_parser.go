@@ -253,6 +253,9 @@ func ParseUrlQuery(query url.Values, lenient bool) (*GoDataQuery, error) {
 	if filter != "" {
 		result.Filter, err = ParseFilterString(filter)
 	}
+	if at != "" {
+		result.At, err = ParseFilterString(at)
+	}
 	if err != nil {
 		return nil, err
 	}
